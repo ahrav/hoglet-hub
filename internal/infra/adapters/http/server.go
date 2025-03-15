@@ -5,8 +5,8 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/trufflesecurity/hoglet-hub/api/v1/server"
-	handler "github.com/trufflesecurity/hoglet-hub/internal/infra/adapters/http/handler"
+	"github.com/ahrav/hoglet-hub/api/v1/server"
+	handler "github.com/ahrav/hoglet-hub/internal/infra/adapters/http/handler"
 )
 
 // ServerAdapter implements the StrictServerInterface by delegating requests

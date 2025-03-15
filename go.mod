@@ -1,4 +1,4 @@
-module github.com/trufflesecurity/hoglet-hub
+module github.com/ahrav/hoglet-hub
 
 go 1.24.0
 

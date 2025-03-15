@@ -7,9 +7,9 @@ import (
 
 	openapi_types "github.com/oapi-codegen/runtime/types"
 
-	"github.com/trufflesecurity/hoglet-hub/api/v1/server"
-	appOperation "github.com/trufflesecurity/hoglet-hub/internal/application/operation"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/api/v1/server"
+	appOperation "github.com/ahrav/hoglet-hub/internal/application/operation"
+	"github.com/ahrav/hoglet-hub/internal/domain/operation"
 )
 
 // OperationHandler implements the operation-related API endpoints.

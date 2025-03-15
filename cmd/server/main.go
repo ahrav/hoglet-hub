@@ -16,12 +16,12 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 
-	operationApp "github.com/trufflesecurity/hoglet-hub/internal/application/operation"
-	tenantApp "github.com/trufflesecurity/hoglet-hub/internal/application/tenant"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/operation"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
-	httpServer "github.com/trufflesecurity/hoglet-hub/internal/infra/adapters/http"
-	handler "github.com/trufflesecurity/hoglet-hub/internal/infra/adapters/http/handler"
+	operationApp "github.com/ahrav/hoglet-hub/internal/application/operation"
+	tenantApp "github.com/ahrav/hoglet-hub/internal/application/tenant"
+	"github.com/ahrav/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
+	httpServer "github.com/ahrav/hoglet-hub/internal/infra/adapters/http"
+	handler "github.com/ahrav/hoglet-hub/internal/infra/adapters/http/handler"
 )
 
 func main() {

@@ -10,8 +10,8 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/trufflesecurity/hoglet-hub/internal/db"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
+	"github.com/ahrav/hoglet-hub/internal/db"
+	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
 )
 
 var _ tenant.Repository = (*tenantStore)(nil)

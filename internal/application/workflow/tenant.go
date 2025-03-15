@@ -4,8 +4,8 @@ import (
 	"context"
 	"time"
 
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/operation"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
+	"github.com/ahrav/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
 )
 
 // TenantCreationWorkflow orchestrates the multi-step process of tenant provisioning.

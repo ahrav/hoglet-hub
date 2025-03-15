@@ -8,11 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trufflesecurity/hoglet-hub/internal/db"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/operation"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
-	tenantRepo "github.com/trufflesecurity/hoglet-hub/internal/infra/storage/tenant/postgres"
-	"github.com/trufflesecurity/hoglet-hub/internal/infra/storage/testutil"
+	"github.com/ahrav/hoglet-hub/internal/db"
+	"github.com/ahrav/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
+	tenantRepo "github.com/ahrav/hoglet-hub/internal/infra/storage/tenant/postgres"
+	"github.com/ahrav/hoglet-hub/internal/infra/storage/testutil"
 )
 
 func setupOperationTest(t *testing.T) (context.Context, *operationStore, tenant.Repository, func()) {

@@ -1,6 +1,6 @@
 package tenant
 
-import "github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
+import "github.com/ahrav/hoglet-hub/internal/domain/tenant"
 
 // CreateTenantRequest represents input for tenant creation
 type CreateTenantRequest struct {

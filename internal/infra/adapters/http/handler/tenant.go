@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/trufflesecurity/hoglet-hub/api/v1/server"
-	appTenant "github.com/trufflesecurity/hoglet-hub/internal/application/tenant"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
+	"github.com/ahrav/hoglet-hub/api/v1/server"
+	appTenant "github.com/ahrav/hoglet-hub/internal/application/tenant"
+	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
 )
 
 // TenantHandler implements the tenant-related API endpoints by translating

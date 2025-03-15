@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/internal/domain/operation"
 )
 
 // Service provides operation-related application services.

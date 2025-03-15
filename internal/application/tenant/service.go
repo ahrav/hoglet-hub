@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/trufflesecurity/hoglet-hub/internal/application/workflow"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/operation"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
+	"github.com/ahrav/hoglet-hub/internal/application/workflow"
+	"github.com/ahrav/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
 )
 
 // CreateParams contains parameters for creating a new tenant.

@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/trufflesecurity/hoglet-hub/internal/db"
-	"github.com/trufflesecurity/hoglet-hub/internal/domain/tenant"
-	"github.com/trufflesecurity/hoglet-hub/internal/infra/storage/testutil"
+	"github.com/ahrav/hoglet-hub/internal/db"
+	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
+	"github.com/ahrav/hoglet-hub/internal/infra/storage/testutil"
 )
 
 func setupTenantTest(t *testing.T) (context.Context, *tenantStore, func()) {
