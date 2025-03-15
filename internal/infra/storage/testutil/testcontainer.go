@@ -54,23 +54,20 @@ func SetupTestContainer(t *testing.T) (*pgxpool.Pool, func()) {
 	pool, err := pgxpool.New(ctx, dsn)
 	require.NoError(t, err)
 
-	// We need this to run migrations
 	db := stdlib.OpenDBFromPool(pool)
 
-	// For migrations, use the pgx driver
 	driver, err := pgx.WithInstance(db, &pgx.Config{})
 	require.NoError(t, err)
 
 	_, currentFile, _, _ := runtime.Caller(0)
 	projectRoot := filepath.Join(filepath.Dir(currentFile), "..", "..", "..", "..")
 
-	// Look for migrations in db/migrations
 	migrationsPath := fmt.Sprintf("file://%s", filepath.Join(projectRoot, "db", "migrations"))
 
 	migrations, err := migrate.NewWithDatabaseInstance(migrationsPath, "postgres", driver)
 	require.NoError(t, err)
 
-	// Apply all schema migrations
+	// Apply all schema migrations.
 	err = migrations.Up()
 	if err != nil && err != migrate.ErrNoChange {
 		require.NoError(t, err)
