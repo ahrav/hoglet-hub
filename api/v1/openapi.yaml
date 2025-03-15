@@ -1,0 +1,320 @@
+openapi: 3.0.3
+info:
+  title: Internal Tenant Provisioning API - Reduced Scope
+  description: |
+    API for provisioning and managing community edition instances of enterprise software.
+    This reduced specification focuses only on tenant creation and deletion operations.
+  version: 1.0.0
+  contact:
+    name: Platform Team
+    email: platform-team@example.com
+
+servers:
+  - url: https://api.provisioning.example.com/api/v1
+    description: Production environment
+  - url: https://api.staging.provisioning.example.com/api/v1
+    description: Staging environment
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token issued by internal authentication service
+
+  schemas:
+    # Core schemas
+    Region:
+      type: string
+      enum: [us1, us2, us3, us4, eu1, eu2, eu3, eu4]
+      description: Deployment regions across GCP
+
+    TenantStatus:
+      type: string
+      enum: [provisioning, active, suspended, error, deleting, isolated]
+      description: Current lifecycle status of a tenant
+
+    OperationStatus:
+      type: string
+      enum: [pending, in_progress, completed, failed, cancelled]
+      description: Status of an asynchronous operation
+
+    # Tenant schemas
+    TenantBase:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 64
+          pattern: ^[a-z0-9-]+$
+          description: Unique identifier for the tenant (lowercase letters, numbers, hyphens)
+        region:
+          $ref: '#/components/schemas/Region'
+        tier:
+          type: string
+          default: free
+          enum: [free, pro, enterprise]
+      required:
+        - name
+        - region
+
+    TenantCreate:
+      allOf:
+        - $ref: '#/components/schemas/TenantBase'
+        - type: object
+          properties:
+            isolation_group_id:
+              type: integer
+              format: int64
+              nullable: true
+              description: Optional isolation group ID if tenant should be isolated
+
+    # Operation schemas
+    OperationResponse:
+      type: object
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: Unique operation ID
+        tenant_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Associated tenant ID if applicable
+        operation_type:
+          type: string
+          description: Type of operation
+        status:
+          $ref: '#/components/schemas/OperationStatus'
+        parameters:
+          type: object
+          additionalProperties: true
+          description: Input parameters for the operation
+        result:
+          type: object
+          additionalProperties: true
+          description: Result data from completed operation
+        error_message:
+          type: string
+          nullable: true
+          description: Error details if operation failed
+        created_by:
+          type: string
+          format: email
+          description: Email of user who initiated this operation
+        created_at:
+          type: string
+          format: date-time
+          description: Creation timestamp
+        updated_at:
+          type: string
+          format: date-time
+          description: Last update timestamp
+        started_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When operation execution began
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: When operation finished
+        _links:
+          $ref: '#/components/schemas/Links'
+      required:
+        - id
+        - operation_type
+        - status
+        - created_at
+        - _links
+
+    # Utility schemas
+    AsyncOperation:
+      type: object
+      properties:
+        operation_id:
+          type: integer
+          format: int64
+          description: ID of the created async operation
+        status:
+          $ref: '#/components/schemas/OperationStatus'
+        tenant_id:
+          type: integer
+          format: int64
+          nullable: true
+          description: Associated tenant ID if applicable
+        _links:
+          $ref: '#/components/schemas/Links'
+      required:
+        - operation_id
+        - status
+        - _links
+
+    Links:
+      type: object
+      additionalProperties:
+        type: string
+      description: HATEOAS links to related resources
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error code
+        message:
+          type: string
+          description: Human-readable error message
+        details:
+          type: object
+          nullable: true
+          additionalProperties: true
+          description: Additional error details
+      required:
+        - error
+        - message
+
+paths:
+  # Create Tenant
+  /tenants:
+    post:
+      summary: Create a new tenant
+      description: Provisions a new tenant instance
+      operationId: createTenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TenantCreate'
+      responses:
+        '202':
+          description: Tenant creation initiated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/AsyncOperation'
+                  - type: object
+                    properties:
+                      tenant_id:
+                        type: integer
+                        format: int64
+                      name:
+                        type: string
+                    required:
+                      - tenant_id
+                      - name
+        '400':
+          description: Bad request due to invalid input
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          description: Unauthorized
+        '409':
+          description: Conflict with existing resource
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - BearerAuth: []
+
+  # Delete Tenant
+  /tenants/{tenant_id}:
+    parameters:
+      - name: tenant_id
+        in: path
+        description: Unique identifier of the tenant
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+    delete:
+      summary: Delete tenant
+      description: Initiates tenant deletion process
+      operationId: deleteTenant
+      responses:
+        '202':
+          description: Tenant deletion initiated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AsyncOperation'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Tenant not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Tenant cannot be deleted in current state
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - BearerAuth: []
+
+  # Operation details (to check status of create/delete operations)
+  /operations/{operation_id}:
+    parameters:
+      - name: operation_id
+        in: path
+        description: Unique identifier of the operation
+        required: true
+        schema:
+          type: integer
+          format: int64
+
+    get:
+      summary: Get operation details
+      description: Retrieves detailed information about a specific operation
+      operationId: getOperation
+      responses:
+        '200':
+          description: Successfully retrieved operation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OperationResponse'
+        '401':
+          description: Unauthorized
+        '404':
+          description: Operation not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+      security:
+        - BearerAuth: []
+
+security:
+  - BearerAuth: []
