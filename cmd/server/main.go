@@ -15,13 +15,14 @@ import (
 	"github.com/golang-migrate/migrate/v4/database/pgx"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	operationApp "github.com/ahrav/hoglet-hub/internal/application/operation"
 	tenantApp "github.com/ahrav/hoglet-hub/internal/application/tenant"
-	"github.com/ahrav/hoglet-hub/internal/domain/operation"
-	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
 	httpServer "github.com/ahrav/hoglet-hub/internal/infra/adapters/http"
 	handler "github.com/ahrav/hoglet-hub/internal/infra/adapters/http/handler"
+	operationRepo "github.com/ahrav/hoglet-hub/internal/infra/storage/operation/postgres"
+	tenantRepo "github.com/ahrav/hoglet-hub/internal/infra/storage/tenant/postgres"
 )
 
 func main() {
@@ -76,25 +77,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	// Initialize repositories
-	// tenantRepo := memory.NewTenantRepository()
-	// operationRepo := memory.NewOperationRepository()
+	// Initialize repositories.
+	tenantRepo := tenantRepo.NewTenantStore(pool, noop.NewTracerProvider().Tracer("test"))
+	operationRepo := operationRepo.NewOperationStore(pool, noop.NewTracerProvider().Tracer("test"))
 
-	var tenantRepo tenant.Repository
-	var operationRepo operation.Repository
-
-	// Initialize application services
+	// Initialize application services.
 	operationService := operationApp.NewService(operationRepo)
 	tenantService := tenantApp.NewService(tenantRepo, operationRepo)
 
-	// Initialize HTTP handlers
+	// Initialize HTTP handlers.
 	tenantHandler := handler.NewTenantHandler(tenantService)
 	operationHandler := handler.NewOperationHandler(operationService)
 
-	// Initialize server adapter
+	// Initialize server adapter.
 	serverAdapter := httpServer.NewServerAdapter(tenantHandler, operationHandler)
 
-	// Create HTTP server
 	server := &http.Server{
 		Addr:         ":8080",
 		Handler:      httpServer.NewHTTPServer(serverAdapter),
@@ -103,7 +100,6 @@ func main() {
 		IdleTimeout:  120 * time.Second,
 	}
 
-	// Start server in a goroutine
 	go func() {
 		log.Printf("HTTP server listening on %s", server.Addr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -111,7 +107,6 @@ func main() {
 		}
 	}()
 
-	// Wait for interrupt signal to gracefully shutdown the server
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
