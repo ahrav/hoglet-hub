@@ -16,8 +16,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/testcontainers/testcontainers-go"
 	"github.com/testcontainers/testcontainers-go/wait"
-	"go.opentelemetry.io/otel/trace"
-	"go.opentelemetry.io/otel/trace/noop"
 )
 
 // SetupTestContainer sets up a PostgreSQL container and runs migrations.
@@ -79,9 +77,4 @@ func SetupTestContainer(t *testing.T) (*pgxpool.Pool, func()) {
 	}
 
 	return pool, cleanup
-}
-
-// NoOpTracer returns a no-op tracer for testing
-func NoOpTracer() trace.Tracer {
-	return noop.NewTracerProvider().Tracer("test")
 }

@@ -7,6 +7,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/ahrav/hoglet-hub/internal/db"
 	"github.com/ahrav/hoglet-hub/internal/domain/operation"
@@ -19,12 +20,13 @@ func setupOperationTest(t *testing.T) (context.Context, *operationStore, tenant.
 	t.Helper()
 
 	pool, cleanup := testutil.SetupTestContainer(t)
+	tracer := noop.NewTracerProvider().Tracer("test")
 	opStore := &operationStore{
 		q:      db.New(pool),
 		pool:   pool,
-		tracer: testutil.NoOpTracer(),
+		tracer: tracer,
 	}
-	tenantStore := tenantRepo.NewTenantStore(pool, testutil.NoOpTracer())
+	tenantStore := tenantRepo.NewTenantStore(pool, tracer)
 	ctx := context.Background()
 
 	return ctx, opStore, tenantStore, cleanup
