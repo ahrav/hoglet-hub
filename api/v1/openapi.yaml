@@ -2,8 +2,7 @@ openapi: 3.0.3
 info:
   title: Internal Tenant Provisioning API - Reduced Scope
   description: |
-    API for provisioning and managing community edition instances of enterprise software.
-    This reduced specification focuses only on tenant creation and deletion operations.
+    API for provisioning and managing ...
   version: 1.0.0
   contact:
     name: Platform Team
