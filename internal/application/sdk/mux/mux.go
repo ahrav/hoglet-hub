@@ -9,8 +9,8 @@ import (
 	"go.opentelemetry.io/otel/trace"
 
 	operationApp "github.com/ahrav/hoglet-hub/internal/application/operation"
+	"github.com/ahrav/hoglet-hub/internal/application/sdk/mid"
 	tenantApp "github.com/ahrav/hoglet-hub/internal/application/tenant"
-	"github.com/ahrav/hoglet-hub/internal/sdk/mid"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 	"github.com/ahrav/hoglet-hub/pkg/web"
 )

@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"runtime/debug"
 
-	"github.com/ahrav/hoglet-hub/internal/sdk/errs"
+	"github.com/ahrav/hoglet-hub/internal/application/sdk/errs"
 	"github.com/ahrav/hoglet-hub/pkg/web"
 )
 
