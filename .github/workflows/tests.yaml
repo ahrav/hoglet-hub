@@ -1,0 +1,34 @@
+name: Go Tests
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Run linter
+      uses: golangci/golangci-lint-action@v6
+      with:
+        version: latest
+        skip-cache: true
+        args: --timeout=5m --fast
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set up Go
+      uses: actions/setup-go@v5
+      with:
+        go-version: '1.24'
+        cache: true
+
+    - name: Install dependencies
+      run: go mod download
+
+    - name: Run tests
+      run: GOEXPERIMENT=synctest go test -v -race -parallel=10 -timeout=5m -short ./...
