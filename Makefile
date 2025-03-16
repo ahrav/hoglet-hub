@@ -139,17 +139,17 @@ dev-up:
 	@echo "Installing NGINX Ingress Controller..."
 	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/$(NGINX_INGRESS_VERSION)/deploy/static/provider/kind/deploy.yaml
 
-	@echo "Waiting for NGINX controller pods to be created (30s)..."
-	sleep 30  # Give pods time to be created
+	@echo "Waiting for NGINX controller pods to be created (20s)..."
+	sleep 20  # Give pods time to be created
 
 	@echo "Checking NGINX controller pods status..."
-	kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --show-labels
+	kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller --show-labels
 
 	@echo "Waiting for NGINX controller to be ready..."
 	kubectl wait --namespace ingress-nginx \
 		--for=condition=ready pod \
-		--selector=app.kubernetes.io/name=ingress-nginx \
-		--timeout=300s || echo "Warning: NGINX controller pods not ready yet, you might need to check with 'kubectl get pods -n ingress-nginx'"
+		--selector=app.kubernetes.io/component=controller \
+		--timeout=90s || echo "Warning: NGINX controller pods not ready yet, you might need to check with 'kubectl get pods -n ingress-nginx'"
 
 	@echo "Checking if DNS entries exist in /etc/hosts..."
 	api_exists=$$(grep -q "127.0.0.1 api.hoglet-hub.local" /etc/hosts && echo "yes" || echo "no")
@@ -164,6 +164,8 @@ dev-up:
 	if [ "$$api_exists" = "no" ]; then \
 		echo "DNS entries added. Remember to remove them when done: sudo sed -i '' '/hoglet-hub.local/d' /etc/hosts"; \
 	fi
+
+	@echo "NGINX controller is ready. Proceeding with the setup..."
 
 dev-load: dev-docker
 	kind load docker-image $(PROVISIONING_SERVER_IMAGE) --name $(KIND_CLUSTER)
@@ -311,9 +313,9 @@ nginx-install:
 	sleep 60
 	@echo "Current pods in ingress-nginx namespace:"
 	kubectl get pods -n ingress-nginx
-	@echo "If you see pods, wait until they're ready, then run:"
-	@echo "kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/name=ingress-nginx --timeout=90s"
-	@echo "For more information, run: kubectl describe pod -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx"
+	@echo "If you see the controller pod, wait until it's ready, then run:"
+	@echo "kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/component=controller --timeout=90s"
+	@echo "For more information, run: kubectl describe pod -n ingress-nginx -l app.kubernetes.io/component=controller"
 
 # Remove the DNS entries from /etc/hosts file
 clean-hosts:
@@ -323,8 +325,8 @@ clean-hosts:
 
 verify-nginx:
 	@echo "Verifying NGINX ingress controller setup..."
-	@echo "\n1. Checking if NGINX pods are running..."
-	kubectl get pods -n ingress-nginx -o wide
+	@echo "\n1. Checking if NGINX controller pods are running..."
+	kubectl get pods -n ingress-nginx -l app.kubernetes.io/component=controller -o wide
 
 	@echo "\n2. Checking ingress controller deployment details..."
 	kubectl describe deployment ingress-nginx-controller -n ingress-nginx
@@ -345,7 +347,7 @@ verify-nginx:
 	curl -v http://localhost:8080 || true
 
 	@echo "\n7. Checking logs from NGINX controller..."
-	kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --tail=20
+	kubectl logs -n ingress-nginx -l app.kubernetes.io/component=controller --tail=20
 
 	@echo "\nNGINX verification complete. You may need to adjust your hosts file"
 	@echo "or run 'make update-hosts' to update your DNS entries"
