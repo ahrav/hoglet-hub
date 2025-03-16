@@ -60,7 +60,6 @@ help:
 	@echo "Build & Docker:"
 	@echo "  build-all             Build all binaries (provisioning-server)"
 	@echo "  docker-all            Build all Docker images"
-	@echo "  proto-gen             Generate Go stubs from .proto"
 	@echo "  sqlc-proto-gen        Generate code with sqlc plus proto if needed"
 	@echo ""
 	@echo "Postgres:"
@@ -114,7 +113,7 @@ dev-docker:
 # 2) Build & Docker creation
 ################################################################################
 
-build-all: proto-gen sqlc-proto-gen build-provisioning-server
+build-all: sqlc-proto-gen build-provisioning-server
 
 sqlc-proto-gen:
 	sqlc generate
