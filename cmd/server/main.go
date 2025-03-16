@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -135,7 +136,7 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 	cfg.Web.ShutdownTimeout = 20 * time.Second
 	cfg.Web.APIHost = "0.0.0.0"
 	cfg.Web.APIPort = "8080"
-	cfg.Web.DebugHost = "0.0.0.0:8090"
+	cfg.Web.DebugHost = "0.0.0.0:8090"         // Always include port for debug host
 	cfg.Web.CORSAllowedOrigins = []string{"*"} // All origins by default
 
 	// Default Tempo configuration
@@ -151,6 +152,9 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 		cfg.Web.APIHost = host
 	}
 	if debugHost := os.Getenv("DEBUG_HOST"); debugHost != "" {
+		if !strings.Contains(debugHost, ":") {
+			debugHost = debugHost + ":8090"
+		}
 		cfg.Web.DebugHost = debugHost
 	}
 	if tempoHost := os.Getenv("TEMPO_HOST"); tempoHost != "" {

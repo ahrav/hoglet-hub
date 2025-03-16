@@ -87,29 +87,19 @@ func (h *HealthHandler) Liveness() http.HandlerFunc {
 // It checks if the database connection is healthy.
 func (h *HealthHandler) Readiness() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// For now, just return 200 OK to let the pod start
-		// This is a temporary fix to help diagnose the startup issue
+		ctx := r.Context()
+
+		err := h.db.Ping(ctx)
+		if err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = w.Write([]byte(`{"status":"down","reason":"database unavailable"}`))
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"up"}`))
-
-		// Original implementation with database check
-		/*
-			ctx := r.Context()
-
-			// Ping the database to check if it's available
-			err := h.db.Ping(ctx)
-			if err != nil {
-				w.Header().Set("Content-Type", "application/json")
-				w.WriteHeader(http.StatusServiceUnavailable)
-				_, _ = w.Write([]byte(`{"status":"down","reason":"database unavailable"}`))
-				return
-			}
-
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusOK)
-			_, _ = w.Write([]byte(`{"status":"up"}`))
-		*/
 	}
 }
 
