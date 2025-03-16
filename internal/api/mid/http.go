@@ -101,7 +101,7 @@ func LoggerHTTP(log *logger.Logger) HTTPMiddleware {
 				"path", r.URL.Path,
 				"remote_addr", r.RemoteAddr,
 				"status_code", sw.status,
-				"took", time.Since(start),
+				"took", time.Since(start).String(),
 			)
 		})
 	}
@@ -116,7 +116,7 @@ func OtelHTTP(tracer trace.Tracer) HTTPMiddleware {
 			ctx := r.Context()
 			startTime := time.Now()
 
-			// Extract trace context from request headers
+			// Extract trace context from request headers.
 			ctx = otel.GetTextMapPropagator().Extract(ctx, propagation.HeaderCarrier(r.Header))
 
 			spanName := r.URL.Path
