@@ -27,18 +27,18 @@ WHERE id = $1;
 
 -- name: FindTenantByID :one
 SELECT * FROM tenants
-WHERE id = $1 AND status != 'deleting'
+WHERE id = $1 AND status != 'deleted'
 LIMIT 1;
 
 -- name: FindTenantByName :one
 SELECT * FROM tenants
-WHERE name = $1 AND status != 'deleting'
+WHERE name = $1 AND status != 'deleted'
 LIMIT 1;
 
 -- name: DeleteTenant :exec
 UPDATE tenants
 SET
-    status = 'deleting',
+    status = 'deleted',
     updated_at = NOW()
 WHERE id = $1;
 

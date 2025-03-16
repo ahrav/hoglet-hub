@@ -290,6 +290,7 @@ const (
 	TenantStatusSuspended    TenantStatus = "suspended"
 	TenantStatusError        TenantStatus = "error"
 	TenantStatusDeleting     TenantStatus = "deleting"
+	TenantStatusDeleted      TenantStatus = "deleted"
 	TenantStatusIsolated     TenantStatus = "isolated"
 )
 

@@ -68,7 +68,7 @@ CREATE INDEX idx_database_nodes_utilization ON database_nodes(current_utilizatio
 -- -----------------------------------------------------------------------------
 
 -- Define tenant status enum
-CREATE TYPE tenant_status AS ENUM ('provisioning', 'active', 'suspended', 'error', 'deleting', 'isolated');
+CREATE TYPE tenant_status AS ENUM ('provisioning', 'active', 'suspended', 'error', 'deleting', 'deleted', 'isolated');
 
 -- Tenants table - Core table tracking all provisioned tenant instances
 CREATE TABLE tenants (

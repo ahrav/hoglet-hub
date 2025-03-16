@@ -88,7 +88,7 @@ func (q *Queries) CreateTenant(ctx context.Context, arg CreateTenantParams) (int
 const deleteTenant = `-- name: DeleteTenant :exec
 UPDATE tenants
 SET
-    status = 'deleting',
+    status = 'deleted',
     updated_at = NOW()
 WHERE id = $1
 `
@@ -243,7 +243,7 @@ func (q *Queries) FindOperationsByTenantID(ctx context.Context, tenantID pgtype.
 
 const findTenantByID = `-- name: FindTenantByID :one
 SELECT id, name, region, status, tier, database_schema, is_isolated, gke_cluster_name, kubernetes_namespace, isolation_group_id, primary_node_id, created_at, updated_at, created_by FROM tenants
-WHERE id = $1 AND status != 'deleting'
+WHERE id = $1 AND status != 'deleted'
 LIMIT 1
 `
 
@@ -271,7 +271,7 @@ func (q *Queries) FindTenantByID(ctx context.Context, id int64) (Tenant, error) 
 
 const findTenantByName = `-- name: FindTenantByName :one
 SELECT id, name, region, status, tier, database_schema, is_isolated, gke_cluster_name, kubernetes_namespace, isolation_group_id, primary_node_id, created_at, updated_at, created_by FROM tenants
-WHERE name = $1 AND status != 'deleting'
+WHERE name = $1 AND status != 'deleted'
 LIMIT 1
 `
 

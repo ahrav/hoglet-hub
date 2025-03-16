@@ -39,7 +39,7 @@ POSTGRES_URL = postgres://postgres:postgres@localhost:5432/hoglet-hub?sslmode=di
         monitoring-port-forward monitoring-cleanup postgres-setup postgres-logs \
         postgres-restart postgres-delete sqlc-proto-gen test test-coverage \
         rollout-restart clean dev-all clean-hosts verify-nginx update-hosts \
-        test-api
+        test-api integration-test integration-test-docker integration-test-setup
 
 help:
 	@echo "Usage: make <command>"
@@ -366,3 +366,9 @@ update-hosts:
 test-api:
 	@echo "Testing API endpoint with curl..."
 	curl -v http://api.hoglet-hub.local/api/v1 || echo "Failed to connect. Try recreating your cluster with 'make dev-down' followed by 'make dev-all'"
+
+integration-test:
+	go test -tags=integration ./internal/test/integration/... -v
+
+integration-test-short:
+	go test -tags=integration ./internal/test/integration/... -v -short
