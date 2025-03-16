@@ -4,8 +4,13 @@ import (
 	"context"
 	"time"
 
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/codes"
+	"go.opentelemetry.io/otel/trace"
+
 	"github.com/ahrav/hoglet-hub/internal/domain/operation"
 	"github.com/ahrav/hoglet-hub/internal/domain/tenant"
+	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 )
 
 // TenantCreationWorkflow orchestrates the multi-step process of tenant provisioning.
@@ -18,6 +23,9 @@ type TenantCreationWorkflow struct {
 	operation     *operation.Operation
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
+
+	logger *logger.Logger
+	tracer trace.Tracer
 }
 
 // NewTenantCreationWorkflow creates a new workflow for tenant provisioning.
@@ -28,6 +36,8 @@ func NewTenantCreationWorkflow(
 	op *operation.Operation,
 	tenantRepo tenant.Repository,
 	operationRepo operation.Repository,
+	logger *logger.Logger,
+	tracer trace.Tracer,
 ) *TenantCreationWorkflow {
 	workflow := &TenantCreationWorkflow{
 		tenant:        t,
@@ -35,6 +45,7 @@ func NewTenantCreationWorkflow(
 		operation:     op,
 		tenantRepo:    tenantRepo,
 		operationRepo: operationRepo,
+		tracer:        tracer,
 	}
 
 	// Define the workflow steps.
@@ -65,8 +76,15 @@ func NewTenantCreationWorkflow(
 			Execute:     workflow.finalizeTenant,
 		},
 	}
-
 	workflow.BaseWorkflow = NewBaseWorkflow(steps)
+	workflow.logger = logger.With(
+		"component", "tenant_creation_workflow",
+		"tenant_id", tenantID,
+		"operation_id", op.ID,
+		"tenant_name", t.Name,
+		"region", t.Region,
+		"number_of_steps", len(steps),
+	)
 
 	return workflow
 }
@@ -75,10 +93,28 @@ func NewTenantCreationWorkflow(
 // The workflow result is delivered through the result channel provided by the BaseWorkflow.
 func (w *TenantCreationWorkflow) Start(ctx context.Context) {
 	go func() {
-		// Update operation status to in progress
+		logger := logger.NewLoggerContext(w.logger.With(
+			"operation_type", "start",
+			"tenant_id", w.tenantID,
+			"operation_id", w.operation.ID,
+			"tenant_name", w.tenant.Name,
+			"region", string(w.tenant.Region),
+		))
+		ctx, span := w.tracer.Start(ctx, "TenantCreationWorkflow.Start", trace.WithAttributes(
+			attribute.Int64("tenant_id", w.tenantID),
+			attribute.Int64("operation_id", w.operation.ID),
+			attribute.String("tenant_name", w.tenant.Name),
+			attribute.String("region", string(w.tenant.Region)),
+		))
+		defer span.End()
+
 		w.operation.Start()
+		span.AddEvent("operation started")
 		if err := w.operationRepo.Update(ctx, w.operation); err != nil {
-			// If operation update fails, report failure but don't block workflow
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "error updating operation")
+			logger.Error(ctx, "error updating operation", "error", err)
+			// If operation update fails, report failure but don't block workflow.
 			result := WorkflowResult{
 				Success: false,
 				Error:   err,
@@ -88,31 +124,46 @@ func (w *TenantCreationWorkflow) Start(ctx context.Context) {
 			close(w.resultChan)
 			return
 		}
+		span.AddEvent("operation updated")
+		logger.Info(ctx, "operation updated")
 
-		// Execute all steps
 		result := w.ExecuteSteps(ctx)
+		span.AddEvent("workflow completed")
+		logger.Info(ctx, "workflow completed")
 
-		// Add tenant ID to result for downstream consumers
 		result.Result["tenant_id"] = w.tenantID
 
-		// Update operation based on workflow result
+		// Update operation based on workflow result.
 		if result.Success {
+			span.AddEvent("operation completed")
+			logger.Info(ctx, "operation completed")
 			w.operation.Complete(result.Result)
 		} else {
+			span.AddEvent("operation failed")
+			logger.Error(ctx, "operation failed", "error", result.Error)
 			w.operation.Fail(result.Error.Error())
 		}
 
-		// Update operation in repository
+		span.AddEvent("persisting operation")
+		logger.Info(ctx, "persisting operation")
 		if err := w.operationRepo.Update(ctx, w.operation); err != nil {
-			// Log error but don't fail the workflow
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "error persisting updated operation")
+			logger.Error(ctx, "error persisting updated operation", "error", err)
 		}
+		logger.Info(ctx, "operation persisted")
+		span.AddEvent("operation persisted")
 
 		w.resultChan <- result
 		close(w.resultChan)
+
+		logger.Info(ctx, "workflow result delivered")
+		span.AddEvent("workflow result delivered")
+		span.SetStatus(codes.Ok, "workflow completed")
 	}()
 }
 
-// Step implementation methods
+// Step implementation methods.
 
 func (w *TenantCreationWorkflow) initializeTenant(ctx context.Context) error {
 	// This would include generating namespaces, IDs, etc.
@@ -156,6 +207,9 @@ type TenantDeletionWorkflow struct {
 	operation     *operation.Operation
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
+
+	logger *logger.Logger
+	tracer trace.Tracer
 }
 
 // NewTenantDeletionWorkflow creates a new workflow for tenant removal.
@@ -166,6 +220,8 @@ func NewTenantDeletionWorkflow(
 	op *operation.Operation,
 	tenantRepo tenant.Repository,
 	operationRepo operation.Repository,
+	logger *logger.Logger,
+	tracer trace.Tracer,
 ) *TenantDeletionWorkflow {
 	workflow := &TenantDeletionWorkflow{
 		tenant:        t,
@@ -173,6 +229,7 @@ func NewTenantDeletionWorkflow(
 		operation:     op,
 		tenantRepo:    tenantRepo,
 		operationRepo: operationRepo,
+		tracer:        tracer,
 	}
 
 	// Define the workflow steps
@@ -205,6 +262,14 @@ func NewTenantDeletionWorkflow(
 	}
 
 	workflow.BaseWorkflow = NewBaseWorkflow(steps)
+	workflow.logger = logger.With(
+		"component", "tenant_deletion_workflow",
+		"tenant_id", tenantID,
+		"operation_id", op.ID,
+		"tenant_name", t.Name,
+		"region", t.Region,
+		"number_of_steps", len(steps),
+	)
 
 	return workflow
 }
@@ -213,9 +278,27 @@ func NewTenantDeletionWorkflow(
 // The workflow result is delivered through the result channel provided by the BaseWorkflow.
 func (w *TenantDeletionWorkflow) Start(ctx context.Context) {
 	go func() {
-		// Update operation status to in progress
+		logger := logger.NewLoggerContext(w.logger.With(
+			"operation_type", "start",
+			"tenant_id", w.tenantID,
+			"operation_id", w.operation.ID,
+			"tenant_name", w.tenant.Name,
+			"region", string(w.tenant.Region),
+		))
+		ctx, span := w.tracer.Start(ctx, "TenantDeletionWorkflow.Start", trace.WithAttributes(
+			attribute.Int64("tenant_id", w.tenantID),
+			attribute.Int64("operation_id", w.operation.ID),
+			attribute.String("tenant_name", w.tenant.Name),
+			attribute.String("region", string(w.tenant.Region)),
+		))
+		defer span.End()
+
 		w.operation.Start()
+		span.AddEvent("operation started")
 		if err := w.operationRepo.Update(ctx, w.operation); err != nil {
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "error updating operation")
+			logger.Error(ctx, "error updating operation", "error", err)
 			// If operation update fails, report failure but don't block workflow
 			result := WorkflowResult{
 				Success: false,
@@ -226,31 +309,46 @@ func (w *TenantDeletionWorkflow) Start(ctx context.Context) {
 			close(w.resultChan)
 			return
 		}
+		span.AddEvent("operation updated")
+		logger.Info(ctx, "operation updated")
 
-		// Execute all steps
 		result := w.ExecuteSteps(ctx)
+		span.AddEvent("workflow completed")
+		logger.Info(ctx, "workflow completed")
 
-		// Add tenant ID to result for downstream consumers
 		result.Result["tenant_id"] = w.tenantID
 
 		// Update operation based on workflow result
 		if result.Success {
+			span.AddEvent("operation completed")
+			logger.Info(ctx, "operation completed")
 			w.operation.Complete(result.Result)
 		} else {
+			span.AddEvent("operation failed")
+			logger.Error(ctx, "operation failed", "error", result.Error)
 			w.operation.Fail(result.Error.Error())
 		}
 
-		// Update operation in repository
+		span.AddEvent("persisting operation")
+		logger.Info(ctx, "persisting operation")
 		if err := w.operationRepo.Update(ctx, w.operation); err != nil {
-			// Log error but don't fail the workflow
+			span.RecordError(err)
+			span.SetStatus(codes.Error, "error persisting updated operation")
+			logger.Error(ctx, "error persisting updated operation", "error", err)
 		}
+		logger.Info(ctx, "operation persisted")
+		span.AddEvent("operation persisted")
 
 		w.resultChan <- result
 		close(w.resultChan)
+
+		logger.Info(ctx, "workflow result delivered")
+		span.AddEvent("workflow result delivered")
+		span.SetStatus(codes.Ok, "workflow completed")
 	}()
 }
 
-// Step implementation methods
+// Step implementation methods.
 
 func (w *TenantDeletionWorkflow) deactivateTenant(ctx context.Context) error {
 	// Mark tenant for deletion

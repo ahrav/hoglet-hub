@@ -153,6 +153,8 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 		newOperation,
 		s.tenantRepo,
 		s.operationRepo,
+		s.logger,
+		s.tracer,
 	)
 	span.AddEvent("create workflow created")
 
@@ -223,6 +225,8 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 		newOperation,
 		s.tenantRepo,
 		s.operationRepo,
+		s.logger,
+		s.tracer,
 	)
 	span.AddEvent("delete workflow created")
 
