@@ -136,16 +136,22 @@ dev-up:
 	kubectl config set-context --current --namespace=$(NAMESPACE)
 
 	# Install NGINX ingress controller
-	echo "Installing NGINX Ingress Controller..."
+	@echo "Installing NGINX Ingress Controller..."
 	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/$(NGINX_INGRESS_VERSION)/deploy/static/provider/kind/deploy.yaml
 
-	echo "Waiting for NGINX controller to be ready..."
+	@echo "Waiting for NGINX controller pods to be created (30s)..."
+	sleep 30  # Give pods time to be created
+
+	@echo "Checking NGINX controller pods status..."
+	kubectl get pods -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --show-labels
+
+	@echo "Waiting for NGINX controller to be ready..."
 	kubectl wait --namespace ingress-nginx \
 		--for=condition=ready pod \
-		--selector=app.kubernetes.io/component=controller \
-		--timeout=300s
+		--selector=app.kubernetes.io/name=ingress-nginx \
+		--timeout=300s || echo "Warning: NGINX controller pods not ready yet, you might need to check with 'kubectl get pods -n ingress-nginx'"
 
-	echo "Checking if DNS entries exist in /etc/hosts..."
+	@echo "Checking if DNS entries exist in /etc/hosts..."
 	api_exists=$$(grep -q "127.0.0.1 api.hoglet-hub.local" /etc/hosts && echo "yes" || echo "no")
 
 	if [ "$$api_exists" = "no" ]; then \
@@ -297,6 +303,18 @@ nginx-port-forward:
 # Utility Targets
 ################################################################################
 
+# Manual installation of NGINX ingress controller (fallback option)
+nginx-install:
+	@echo "Installing NGINX ingress controller manually..."
+	kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/$(NGINX_INGRESS_VERSION)/deploy/static/provider/kind/deploy.yaml
+	@echo "Waiting 60 seconds for pods to be created..."
+	sleep 60
+	@echo "Current pods in ingress-nginx namespace:"
+	kubectl get pods -n ingress-nginx
+	@echo "If you see pods, wait until they're ready, then run:"
+	@echo "kubectl wait --namespace ingress-nginx --for=condition=ready pod --selector=app.kubernetes.io/name=ingress-nginx --timeout=90s"
+	@echo "For more information, run: kubectl describe pod -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx"
+
 # Remove the DNS entries from /etc/hosts file
 clean-hosts:
 	@echo "Removing hoglet-hub.local DNS entries from /etc/hosts..."
@@ -305,26 +323,29 @@ clean-hosts:
 
 verify-nginx:
 	@echo "Verifying NGINX ingress controller setup..."
-	@echo "1. Checking if NGINX pods are running..."
-	kubectl get pods -n ingress-nginx
+	@echo "\n1. Checking if NGINX pods are running..."
+	kubectl get pods -n ingress-nginx -o wide
 
-	@echo "\n2. Checking ingress classes..."
+	@echo "\n2. Checking ingress controller deployment details..."
+	kubectl describe deployment ingress-nginx-controller -n ingress-nginx
+
+	@echo "\n3. Checking ingress classes..."
 	kubectl get ingressclass
 
-	@echo "\n3. Checking NGINX controller service..."
+	@echo "\n4. Checking NGINX controller service..."
 	kubectl get svc -n ingress-nginx ingress-nginx-controller -o wide
 
-	@echo "\n4. Setting up port-forwarding to access NGINX..."
+	@echo "\n5. Setting up port-forwarding to access NGINX..."
 	kubectl port-forward --namespace ingress-nginx service/ingress-nginx-controller 8080:80 > /dev/null 2>&1 &
 	PF_PID=$$!
 	echo "Port forwarding started with PID: $$PF_PID"
 	sleep 3
 
-	@echo "\n5. Testing connection to NGINX proxy..."
+	@echo "\n6. Testing connection to NGINX proxy..."
 	curl -v http://localhost:8080 || true
 
-	@echo "\n6. Testing connection to api.hoglet-hub.local..."
-	curl -v http://api.hoglet-hub.local || true
+	@echo "\n7. Checking logs from NGINX controller..."
+	kubectl logs -n ingress-nginx -l app.kubernetes.io/name=ingress-nginx --tail=20
 
 	@echo "\nNGINX verification complete. You may need to adjust your hosts file"
 	@echo "or run 'make update-hosts' to update your DNS entries"
