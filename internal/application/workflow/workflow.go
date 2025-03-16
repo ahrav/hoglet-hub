@@ -49,23 +49,50 @@ type Workflow interface {
 type BaseWorkflow struct {
 	steps      []Step
 	resultChan chan WorkflowResult
+	timeout    time.Duration // Default timeout for workflow execution
 }
+
+// DefaultTimeout is the default timeout used if none is specified.
+const DefaultTimeout = 5 * time.Minute
 
 // NewBaseWorkflow creates a new base workflow with the provided execution steps.
 func NewBaseWorkflow(steps []Step) *BaseWorkflow {
+	return NewBaseWorkflowWithTimeout(steps, DefaultTimeout)
+}
+
+// NewBaseWorkflowWithTimeout creates a new base workflow with the provided execution steps
+// and a custom timeout.
+func NewBaseWorkflowWithTimeout(steps []Step, timeout time.Duration) *BaseWorkflow {
+	if timeout <= 0 {
+		timeout = DefaultTimeout
+	}
+
 	return &BaseWorkflow{
 		steps:      steps,
 		resultChan: make(chan WorkflowResult, 1),
+		timeout:    timeout,
 	}
 }
 
 // ResultChan returns the channel that will receive the workflow execution result.
-func (w *BaseWorkflow) ResultChan() <-chan WorkflowResult {
-	return w.resultChan
+func (w *BaseWorkflow) ResultChan() <-chan WorkflowResult { return w.resultChan }
+
+// Start implements the Workflow interface by executing steps asynchronously
+// and sending the result to the result channel.
+func (w *BaseWorkflow) Start(ctx context.Context) {
+	// Create a derived context with the workflow timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, w.timeout)
+
+	go func() {
+		defer cancel() // Ensure context is canceled when done
+		result := w.ExecuteSteps(timeoutCtx)
+		w.resultChan <- result
+	}()
 }
 
 // ExecuteSteps runs all workflow steps in sequence and returns a consolidated result.
 // It stops execution on the first step failure unless the workflow defines different behavior.
+// It also handles context cancellation gracefully.
 func (w *BaseWorkflow) ExecuteSteps(ctx context.Context) WorkflowResult {
 	result := WorkflowResult{
 		Success:     true,
@@ -73,16 +100,38 @@ func (w *BaseWorkflow) ExecuteSteps(ctx context.Context) WorkflowResult {
 		Result:      make(map[string]any),
 	}
 
-	// Execute each step.
+	if ctx.Err() != nil {
+		result.Success = false
+		result.Error = fmt.Errorf("workflow aborted: %w", ctx.Err())
+		result.CompletedAt = time.Now()
+		return result
+	}
+
 	for _, step := range w.steps {
 		stepResult := StepResult{
 			StepName:  step.Name,
 			StartedAt: time.Now(),
 		}
 
-		err := step.Execute(ctx)
+		// We run this in a separate goroutine to avoid blocking the main workflow,
+		// and providing us a way to check for context cancellation.
+		// This is necessary because we do not control the execution of the steps,
+		// and they may take an arbitrary amount of time to complete.
+		resultChan := make(chan error, 1)
+		go func(s Step) {
+			resultChan <- s.Execute(ctx)
+		}(step)
 
-		// Record result.
+		var err error
+		select {
+		case err = <-resultChan:
+			// Step completed.
+		case <-ctx.Done():
+			// Context canceled - we acknowledge it but don't wait for the step.
+			// TODO: Maybe consider giving the step a chance to finish?
+			err = ctx.Err()
+		}
+
 		stepResult.CompletedAt = time.Now()
 		stepResult.Duration = stepResult.CompletedAt.Sub(stepResult.StartedAt)
 
@@ -90,7 +139,7 @@ func (w *BaseWorkflow) ExecuteSteps(ctx context.Context) WorkflowResult {
 			stepResult.Success = false
 			stepResult.Error = err
 			result.Success = false
-			result.Error = fmt.Errorf("step %s failed: %w", step.Name, err)
+			result.Error = fmt.Errorf("step %s: %w", step.Name, err)
 			result.StepResults = append(result.StepResults, stepResult)
 			break
 		}
@@ -98,7 +147,6 @@ func (w *BaseWorkflow) ExecuteSteps(ctx context.Context) WorkflowResult {
 		stepResult.Success = true
 		result.StepResults = append(result.StepResults, stepResult)
 	}
-
 	result.CompletedAt = time.Now()
 
 	return result
