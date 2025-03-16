@@ -179,7 +179,7 @@ components:
 
 paths:
   # Create Tenant
-  /tenants:
+  /api/v1/tenants:
     post:
       summary: Create a new tenant
       description: Provisions a new tenant instance
@@ -232,7 +232,7 @@ paths:
         - BearerAuth: []
 
   # Delete Tenant
-  /tenants/{tenant_id}:
+  /api/v1/tenants/{tenant_id}:
     parameters:
       - name: tenant_id
         in: path
@@ -277,7 +277,7 @@ paths:
         - BearerAuth: []
 
   # Operation details (to check status of create/delete operations)
-  /operations/{operation_id}:
+  /api/v1/operations/{operation_id}:
     parameters:
       - name: operation_id
         in: path
