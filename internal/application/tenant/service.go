@@ -74,6 +74,13 @@ func NewService(
 // It performs validation, creates necessary domain entities, and launches an async workflow.
 func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResult, error) {
 	name, region, tier, isolationGroupID := params.Name, params.Region, params.Tier, params.IsolationGroupID
+	logger := logger.NewLoggerContext(s.logger.With(
+		"operation_type", "create",
+		"tenant_name", name,
+		"region", region,
+		"tier", tier,
+		"isolation_group_id", isolationGroupID,
+	))
 	ctx, span := s.tracer.Start(ctx, "tenant.Create", trace.WithAttributes(
 		attribute.String("name", name),
 		attribute.String("region", string(region)),
@@ -110,7 +117,9 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 		return nil, fmt.Errorf("failed to persist tenant (%s): %w", name, err)
 	}
 	span.SetAttributes(attribute.Int64("tenant_id", tenantID))
+	logger.Add("tenant_id", tenantID)
 	span.AddEvent("tenant persisted")
+	logger.Info(ctx, "tenant created")
 
 	newOperation, err := operation.NewTenantCreateOperation(
 		tenantID,
@@ -133,7 +142,9 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 		return nil, fmt.Errorf("failed to persist operation for tenant (%s): %w", name, err)
 	}
 	span.AddEvent("operation persisted")
+	logger.Add("operation_id", operationID)
 	span.SetAttributes(attribute.Int64("operation_id", operationID))
+	logger.Info(ctx, "operation created")
 
 	newOperation.ID = operationID
 	creationWorkflow := workflow.NewTenantCreationWorkflow(
@@ -156,6 +167,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 	// Set up goroutine to handle workflow completion and cleanup.
 	go s.handleWorkflowCompletion(ctx, operationID, creationWorkflow)
 
+	logger.Info(ctx, "async create workflow started")
 	span.AddEvent("async create workflow started")
 	span.SetStatus(codes.Ok, "tenant creation process started")
 
@@ -166,6 +178,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 // It verifies the tenant exists, creates a tracking operation, and launches an async workflow.
 // TODO: Does this need to be async?
 func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, error) {
+	logger := logger.NewLoggerContext(s.logger.With("operation_type", "delete", "tenant_id", tenantID))
 	ctx, span := s.tracer.Start(ctx, "tenant.Delete", trace.WithAttributes(
 		attribute.Int64("tenant_id", tenantID),
 	))
@@ -198,8 +211,10 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 		span.SetStatus(codes.Error, "error persisting operation")
 		return nil, fmt.Errorf("failed to persist operation for tenant (%d): %w", tenantID, err)
 	}
+	logger.Add("operation_id", operationID)
 	span.SetAttributes(attribute.Int64("operation_id", operationID))
 	span.AddEvent("operation persisted")
+	logger.Info(ctx, "operation created")
 
 	newOperation.ID = operationID
 	deletionWorkflow := workflow.NewTenantDeletionWorkflow(
@@ -221,6 +236,7 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 	// Set up goroutine to handle workflow completion and cleanup.
 	go s.handleWorkflowCompletion(ctx, operationID, deletionWorkflow)
 
+	logger.Info(ctx, "async delete workflow started")
 	span.AddEvent("async delete workflow started")
 	span.SetStatus(codes.Ok, "tenant deletion process started")
 
@@ -249,6 +265,7 @@ func (s *Service) handleWorkflowCompletion(ctx context.Context, operationID int6
 	defer span.End()
 
 	span.AddEvent("waiting for workflow completion")
+	s.logger.Debug(ctx, "waiting for workflow completion")
 	// Wait for workflow to complete.
 	// TODO: Handle the result we get back.
 	<-workflow.ResultChan()
@@ -258,5 +275,6 @@ func (s *Service) handleWorkflowCompletion(ctx context.Context, operationID int6
 	delete(s.activeWorkflows, operationID)
 	s.mu.Unlock()
 
+	s.logger.Info(ctx, "workflow cleanup complete")
 	span.AddEvent("workflow cleanup complete")
 }
