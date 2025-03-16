@@ -9,10 +9,12 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 
 	"github.com/ahrav/hoglet-hub/internal/db"
 	"github.com/ahrav/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/internal/infra/storage"
 )
 
 // Package postgres provides PostgreSQL implementations of the domain repositories.
@@ -25,100 +27,123 @@ type operationStore struct {
 	tracer trace.Tracer
 }
 
+// defaultDBAttributes defines standard OpenTelemetry attributes for database operations.
+var defaultDBAttributes = []attribute.KeyValue{attribute.String("db.system", "postgresql")}
+
 // NewOperationStore creates an operation.Repository backed by PostgreSQL.
 // It provides persistence for operation entities and their lifecycle management.
 func NewOperationStore(pool *pgxpool.Pool, tracer trace.Tracer) operation.Repository {
-	return &operationStore{
-		q:      db.New(pool),
-		pool:   pool,
-		tracer: tracer,
-	}
+	return &operationStore{q: db.New(pool), pool: pool, tracer: tracer}
 }
 
 // Create persists a new operation and returns its ID.
 // It handles serialization of operation parameters and sets default values where needed.
 func (s *operationStore) Create(ctx context.Context, op *operation.Operation) (int64, error) {
-	ctx, span := s.tracer.Start(ctx, "operationStore.Create")
-	defer span.End()
+	dbAttrs := append(defaultDBAttributes,
+		attribute.String("operation.type", string(op.Type)),
+		attribute.String("operation.status", string(op.Status)),
+	)
 
-	var tenantID pgtype.Int8
 	if op.TenantID != nil {
-		tenantID.Int64 = *op.TenantID
-		tenantID.Valid = true
+		dbAttrs = append(dbAttrs, attribute.Int64("tenant.id", *op.TenantID))
 	}
 
-	paramsJSON, err := json.Marshal(op.Parameters)
-	if err != nil {
-		return 0, err
-	}
+	var id int64
+	err := storage.ExecuteAndTrace(ctx, s.tracer, "operationStore.Create", dbAttrs, func(ctx context.Context) error {
+		var tenantID pgtype.Int8
+		if op.TenantID != nil {
+			tenantID.Int64 = *op.TenantID
+			tenantID.Valid = true
+		}
 
-	createdBy := "system"
-	if op.CreatedBy != nil {
-		createdBy = *op.CreatedBy
-	}
+		paramsJSON, err := json.Marshal(op.Parameters)
+		if err != nil {
+			return err
+		}
 
-	id, err := s.q.CreateOperation(ctx, db.CreateOperationParams{
-		TenantID:      tenantID,
-		OperationType: string(op.Type),
-		Status:        db.OperationStatus(op.Status),
-		Parameters:    paramsJSON,
-		CreatedBy:     createdBy,
+		createdBy := "system"
+		if op.CreatedBy != nil {
+			createdBy = *op.CreatedBy
+		}
+
+		var createErr error
+		id, createErr = s.q.CreateOperation(ctx, db.CreateOperationParams{
+			TenantID:      tenantID,
+			OperationType: string(op.Type),
+			Status:        db.OperationStatus(op.Status),
+			Parameters:    paramsJSON,
+			CreatedBy:     createdBy,
+		})
+		return createErr
 	})
-	if err != nil {
-		return 0, err
-	}
 
-	return id, nil
+	return id, err
 }
 
 // Update modifies an existing operation with new state information.
 // This is used to track operation progress, results, and completion status.
 func (s *operationStore) Update(ctx context.Context, op *operation.Operation) error {
-	ctx, span := s.tracer.Start(ctx, "operationStore.Update")
-	defer span.End()
+	dbAttrs := append(defaultDBAttributes,
+		attribute.Int64("operation.id", op.ID),
+		attribute.String("operation.status", string(op.Status)),
+	)
 
-	resultJSON, err := json.Marshal(op.Result)
-	if err != nil {
-		return err
+	if op.TenantID != nil {
+		dbAttrs = append(dbAttrs, attribute.Int64("tenant.id", *op.TenantID))
 	}
 
-	var errorMsg pgtype.Text
-	if op.ErrorMessage != nil {
-		errorMsg.String = *op.ErrorMessage
-		errorMsg.Valid = true
-	}
+	return storage.ExecuteAndTrace(ctx, s.tracer, "operationStore.Update", dbAttrs, func(ctx context.Context) error {
+		resultJSON, err := json.Marshal(op.Result)
+		if err != nil {
+			return err
+		}
 
-	var startedAt, completedAt pgtype.Timestamptz
-	if op.StartedAt != nil {
-		startedAt.Time = *op.StartedAt
-		startedAt.Valid = true
-	}
-	if op.CompletedAt != nil {
-		completedAt.Time = *op.CompletedAt
-		completedAt.Valid = true
-	}
+		var errorMsg pgtype.Text
+		if op.ErrorMessage != nil {
+			errorMsg.String = *op.ErrorMessage
+			errorMsg.Valid = true
+		}
 
-	return s.q.UpdateOperation(ctx, db.UpdateOperationParams{
-		ID:           op.ID,
-		Status:       db.OperationStatus(op.Status),
-		Result:       resultJSON,
-		ErrorMessage: errorMsg,
-		StartedAt:    startedAt,
-		CompletedAt:  completedAt,
+		var startedAt, completedAt pgtype.Timestamptz
+		if op.StartedAt != nil {
+			startedAt.Time = *op.StartedAt
+			startedAt.Valid = true
+		}
+		if op.CompletedAt != nil {
+			completedAt.Time = *op.CompletedAt
+			completedAt.Valid = true
+		}
+
+		return s.q.UpdateOperation(ctx, db.UpdateOperationParams{
+			ID:           op.ID,
+			Status:       db.OperationStatus(op.Status),
+			Result:       resultJSON,
+			ErrorMessage: errorMsg,
+			StartedAt:    startedAt,
+			CompletedAt:  completedAt,
+		})
 	})
 }
 
 // FindByID retrieves an operation by ID.
 // Returns ErrOperationNotFound if the operation doesn't exist.
 func (s *operationStore) FindByID(ctx context.Context, id int64) (*operation.Operation, error) {
-	ctx, span := s.tracer.Start(ctx, "operationStore.FindByID")
-	defer span.End()
+	dbAttrs := append(defaultDBAttributes, attribute.Int64("operation.id", id))
 
-	dbOp, err := s.q.FindOperationByID(ctx, id)
-	if err != nil {
-		if errors.Is(err, pgx.ErrNoRows) {
-			return nil, operation.ErrOperationNotFound
+	var dbOp db.Operation
+	err := storage.ExecuteAndTrace(ctx, s.tracer, "operationStore.FindByID", dbAttrs, func(ctx context.Context) error {
+		var err error
+		dbOp, err = s.q.FindOperationByID(ctx, id)
+		if err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return operation.ErrOperationNotFound
+			}
+			return err
 		}
+		return nil
+	})
+
+	if err != nil {
 		return nil, err
 	}
 
@@ -128,11 +153,16 @@ func (s *operationStore) FindByID(ctx context.Context, id int64) (*operation.Ope
 // FindByTenantID retrieves all operations associated with a tenant.
 // This allows tracking all operations for a specific tenant.
 func (s *operationStore) FindByTenantID(ctx context.Context, tenantID int64) ([]*operation.Operation, error) {
-	ctx, span := s.tracer.Start(ctx, "operationStore.FindByTenantID")
-	defer span.End()
+	dbAttrs := append(defaultDBAttributes, attribute.Int64("tenant.id", tenantID))
 
-	tenantIDPg := pgtype.Int8{Int64: tenantID, Valid: true}
-	dbOps, err := s.q.FindOperationsByTenantID(ctx, tenantIDPg)
+	var dbOps []db.Operation
+	err := storage.ExecuteAndTrace(ctx, s.tracer, "operationStore.FindByTenantID", dbAttrs, func(ctx context.Context) error {
+		tenantIDPg := pgtype.Int8{Int64: tenantID, Valid: true}
+		var err error
+		dbOps, err = s.q.FindOperationsByTenantID(ctx, tenantIDPg)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -143,10 +173,15 @@ func (s *operationStore) FindByTenantID(ctx context.Context, tenantID int64) ([]
 // FindByStatus retrieves operations with a specific status.
 // Useful for finding operations in particular states (pending, running, etc.).
 func (s *operationStore) FindByStatus(ctx context.Context, status operation.Status) ([]*operation.Operation, error) {
-	ctx, span := s.tracer.Start(ctx, "operationStore.FindByStatus")
-	defer span.End()
+	dbAttrs := append(defaultDBAttributes, attribute.String("operation.status", string(status)))
 
-	dbOps, err := s.q.FindOperationsByStatus(ctx, db.OperationStatus(status))
+	var dbOps []db.Operation
+	err := storage.ExecuteAndTrace(ctx, s.tracer, "operationStore.FindByStatus", dbAttrs, func(ctx context.Context) error {
+		var err error
+		dbOps, err = s.q.FindOperationsByStatus(ctx, db.OperationStatus(status))
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
@@ -157,10 +192,15 @@ func (s *operationStore) FindByStatus(ctx context.Context, status operation.Stat
 // FindIncomplete retrieves all non-terminal operations.
 // This is primarily used by background workers to find operations that need processing.
 func (s *operationStore) FindIncomplete(ctx context.Context) ([]*operation.Operation, error) {
-	ctx, span := s.tracer.Start(ctx, "operationStore.FindIncomplete")
-	defer span.End()
+	dbAttrs := append(defaultDBAttributes, attribute.String("operation.filter", "incomplete"))
 
-	dbOps, err := s.q.FindIncompleteOperations(ctx)
+	var dbOps []db.Operation
+	err := storage.ExecuteAndTrace(ctx, s.tracer, "operationStore.FindIncomplete", dbAttrs, func(ctx context.Context) error {
+		var err error
+		dbOps, err = s.q.FindIncompleteOperations(ctx)
+		return err
+	})
+
 	if err != nil {
 		return nil, err
 	}
