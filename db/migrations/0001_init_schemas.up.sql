@@ -61,10 +61,6 @@ CREATE TABLE database_nodes (
     created_by VARCHAR(64) NOT NULL                -- User who created this node
 );
 
-CREATE INDEX idx_database_nodes_region ON database_nodes(region);
-CREATE INDEX idx_database_nodes_status ON database_nodes(status);
-CREATE INDEX idx_database_nodes_utilization ON database_nodes(current_utilization_percent); -- For load balancing queries
-
 -- -----------------------------------------------------------------------------
 -- Tenants
 -- -----------------------------------------------------------------------------
@@ -99,9 +95,6 @@ CREATE TABLE tenants (
 );
 
 CREATE INDEX idx_tenants_status ON tenants(status);
-CREATE INDEX idx_tenants_region ON tenants(region);
-CREATE INDEX idx_tenants_isolation_group ON tenants(isolation_group_id);
-CREATE INDEX idx_tenants_primary_node ON tenants(primary_node_id);
 
 -- -----------------------------------------------------------------------------
 -- Operations
@@ -135,7 +128,6 @@ CREATE TABLE operations (
 
 CREATE INDEX idx_operations_tenant ON operations(tenant_id);
 CREATE INDEX idx_operations_status ON operations(status);
-CREATE INDEX idx_operations_type ON operations(operation_type);
 
 -- -----------------------------------------------------------------------------
 -- Resources
@@ -171,9 +163,6 @@ CREATE TABLE resources (
 );
 
 CREATE INDEX idx_resources_tenant ON resources(tenant_id);
-CREATE INDEX idx_resources_type_name ON resources(resource_type, resource_name);
-CREATE INDEX idx_resources_project ON resources(project_id);
-CREATE INDEX idx_resources_type_count ON resources(resource_type, tenant_id); -- For counting resources by type per tenant
 
 -- Resource counts table - Aggregated counts of resources by type and project
 -- Helps enforce GCP quotas like 10,000 Pub/Sub topics per project
@@ -220,7 +209,6 @@ CREATE TABLE audit_logs (
 );
 
 -- Consider time-based partitioning for this table in production
-CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
-CREATE INDEX idx_audit_logs_action ON audit_logs(action);
-CREATE INDEX idx_audit_logs_tenant ON audit_logs(tenant_id);
 CREATE INDEX idx_audit_logs_actor ON audit_logs(actor);
+CREATE INDEX idx_audit_logs_tenant ON audit_logs(tenant_id);
+CREATE INDEX idx_audit_logs_timestamp ON audit_logs(timestamp);
