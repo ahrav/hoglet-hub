@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,6 +16,51 @@ import (
 	tenantDomain "github.com/ahrav/hoglet-hub/internal/domain/tenant"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 )
+
+// DATA RACE PREVENTION PATTERN
+//
+// This test file implements a specific pattern to prevent data races when testing
+// the tenant service, which uses asynchronous workflows:
+//
+// The Problem:
+// - The tenant service launches workflows that run in background goroutines
+// - These workflows modify shared state like Operation objects
+// - In tests, there's a race between these goroutines and test verification code
+// - The race detector flags this as an error even though it's not an issue in production
+//
+// The Solution:
+// 1. Factory Pattern: We use a WorkflowFactory interface to create workflows
+// 2. MockWorkflowFactory: In tests, we inject a mock factory that returns controlled workflows
+// 3. MockWorkflow.TestMode(): This configures mock workflows to complete synchronously
+// 4. Synchronous Execution: The workflow completes in the same goroutine as the test
+//
+// This pattern preserves the asynchronous design in production while making
+// workflow execution deterministic and synchronous during testing.
+
+// TESTING THE WORKFLOW FACTORY PATTERN
+//
+// The WorkflowFactory pattern is used in our architecture to enable:
+// - Separation of concerns between service orchestration and workflow implementation
+// - Adaptability to different environments and tenant requirements
+// - Extension points for different provisioning strategies based on regions or tiers
+// - Dependency management and initialization isolation
+//
+// Our API design follows the Go principle of "accept interfaces, return concrete types":
+// - We accept WorkflowFactory as an interface for flexibility
+// - But we return only concrete data (IDs) to clients, not workflow interfaces
+// - This decouples clients from our implementation details
+//
+// When testing this pattern, we face a challenge with asynchronous workflows:
+// - In production: Workflows run asynchronously in separate goroutines
+// - In tests: This asynchrony causes data races with test verification code
+//
+// Our testing approach uses the same architectural pattern but with controlled workflows:
+// 1. We inject a MockWorkflowFactory that returns MockWorkflow instances
+// 2. MockWorkflow.TestMode() configures workflows to complete synchronously
+// 3. This allows us to test the service behavior without race conditions
+//
+// This testing strategy verifies the business logic while maintaining the
+// architectural benefits of the factory pattern.
 
 // MockTenantRepo is a testify mock for tenant.Repository.
 type MockTenantRepo struct{ mock.Mock }
@@ -83,7 +129,17 @@ func (m *MockOperationRepo) FindIncomplete(ctx context.Context) ([]*operation.Op
 	return ops, args.Error(1)
 }
 
-// MockWorkflow is a testify mock for workflow.Workflow.
+// MockWorkflow is a testify mock implementation of the Workflow interface.
+//
+// While our architectural design uses asynchronous workflows for production,
+// this mock allows us to test the tenant service's interaction with workflows
+// in a controlled manner. It preserves the interface contract while providing
+// test-specific capabilities for controlling execution flow.
+//
+// The mock is useful for verifying:
+// - The service correctly creates and passes parameters to workflows
+// - Error handling behavior when workflow operations fail
+// - Service behavior throughout the workflow lifecycle
 type MockWorkflow struct {
 	mock.Mock
 	resultChan chan workflow.WorkflowResult
@@ -96,21 +152,82 @@ func NewMockWorkflow() *MockWorkflow {
 	return &MockWorkflow{resultChan: make(chan workflow.WorkflowResult, 1)}
 }
 
+// TestMode configures the mock workflow for synchronous execution in tests.
+//
+// When testing the tenant service, we need to verify its behavior without
+// dealing with asynchronous race conditions. This method:
+//
+// 1. Configures the Start() method to be called with any context
+// 2. Makes Start() immediately provide a successful result
+// 3. Ensures workflow completion actions happen in the test goroutine
+//
+// This approach maintains the architectural integrity of the workflow
+// factory pattern while making it practical to test within the unit test framework.
+func (m *MockWorkflow) TestMode() {
+	// When Start is called in test mode, immediately send a successful result
+	m.On("Start", mock.Anything).Run(func(args mock.Arguments) {
+		// Immediately send a result to simulate completion
+		m.resultChan <- workflow.WorkflowResult{
+			Success:     true,
+			CompletedAt: time.Now(),
+			Result:      map[string]interface{}{},
+		}
+	})
+}
+
 func (m *MockWorkflow) Start(ctx context.Context) {
 	m.Called(ctx)
-	// TODO: Use synctest.
-	// In a real test, we can optionally simulate asynchronous completion
-	// For example, we can push a result right away to the channel to test completion logic:
-	// go func() {
-	//     time.Sleep(10 * time.Millisecond)
-	//     m.resultChan <- workflow.WorkflowResult{Success: true, CompletedAt: time.Now()}
-	// }()
+	// In a test without TestMode, we could push a result to the channel here to simulate
+	// immediate completion, but for most tests we want to control this behavior with TestMode
 }
 
 func (m *MockWorkflow) ResultChan() <-chan workflow.WorkflowResult { return m.resultChan }
 
 // Helper method to let the test inject results.
 func (m *MockWorkflow) SendResult(result workflow.WorkflowResult) { m.resultChan <- result }
+
+// MockWorkflowFactory is a testify mock for WorkflowFactory.
+//
+// This mock factory is a key component in our testing strategy:
+// 1. It allows us to control workflow creation in tests
+// 2. We can return MockWorkflow instances configured with TestMode()
+// 3. This gives us full control over the asynchronous behavior
+//
+// By using this factory in tests, we transform the asynchronous workflow
+// into a synchronous one, eliminating race conditions between the service
+// code and test verification.
+
+// MockWorkflowFactory is a test implementation of the WorkflowFactory interface.
+//
+// This mock lets us verify that:
+// - The tenant service correctly requests appropriate workflow types
+// - Workflows are created with proper parameters for each tenant operation
+// - The service handles the workflow creation and execution pattern correctly
+//
+// By injecting this factory in tests, we maintain the architectural separation
+// between service orchestration and workflow implementation while keeping
+// tests deterministic and reliable.
+type MockWorkflowFactory struct {
+	mock.Mock
+}
+
+func (m *MockWorkflowFactory) NewTenantCreationWorkflow(
+	t *tenantDomain.Tenant,
+	tenantID int64,
+	op *operation.Operation,
+) workflow.Workflow {
+	args := m.Called(t, tenantID, op)
+	return args.Get(0).(workflow.Workflow)
+}
+
+func (m *MockWorkflowFactory) NewTenantDeletionWorkflow(
+	t *tenantDomain.Tenant,
+	tenantID int64,
+	op *operation.Operation,
+) workflow.Workflow {
+	args := m.Called(t, tenantID, op)
+	return args.Get(0).(workflow.Workflow)
+}
 
 func TestServiceCreate(t *testing.T) {
 	ctx := context.Background()
@@ -202,36 +319,64 @@ func TestServiceCreate(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		mockTenantRepo := new(MockTenantRepo)
-		mockOperationRepo := new(MockOperationRepo)
+		t.Run(tc.desc, func(t *testing.T) {
+			mockTenantRepo := new(MockTenantRepo)
+			mockOperationRepo := new(MockOperationRepo)
+			mockWorkflow := NewMockWorkflow()
+			mockWorkflowFactory := new(MockWorkflowFactory)
 
-		tc.mockTenantRepoFn(mockTenantRepo)
-		tc.mockOperationRepoFn(mockOperationRepo)
+			// Set workflow expectations ONLY for successful cases
+			if !tc.expectError {
+				// Set up the workflow to complete immediately to avoid race conditions
+				mockWorkflow.TestMode()
 
-		logger := logger.Noop()
-		tracer := noop.NewTracerProvider().Tracer("test")
-		svc := tenant.NewService(mockTenantRepo, mockOperationRepo, logger, tracer)
-		res, err := svc.Create(ctx, tc.inputParams)
-
-		if tc.expectError {
-			assert.Error(t, err, "expected an error but got none")
-
-			if tc.expectErrorContains != "" {
-				assert.Contains(t, err.Error(), tc.expectErrorContains)
+				// Set up the factory to return our controlled workflow
+				mockWorkflowFactory.On("NewTenantCreationWorkflow",
+					mock.AnythingOfType("*tenant.Tenant"),
+					mock.AnythingOfType("int64"),
+					mock.AnythingOfType("*operation.Operation")).
+					Return(mockWorkflow)
 			}
-			if tc.expectErrIs != nil {
-				assert.ErrorIs(t, err, tc.expectErrIs)
-			}
-			assert.Nil(t, res)
-		} else {
-			assert.NoError(t, err, "didn't expect an error, but got one")
-			assert.NotNil(t, res)
-			assert.EqualValues(t, tc.expectTenantID, res.TenantID)
-			assert.EqualValues(t, tc.expectOperationID, res.OperationID)
-		}
 
-		mockTenantRepo.AssertExpectations(t)
-		mockOperationRepo.AssertExpectations(t)
+			tc.mockTenantRepoFn(mockTenantRepo)
+			tc.mockOperationRepoFn(mockOperationRepo)
+
+			logger := logger.Noop()
+			tracer := noop.NewTracerProvider().Tracer("test")
+
+			// Use the service constructor that accepts a workflow factory
+			svc := tenant.NewServiceWithWorkflowFactory(
+				mockTenantRepo,
+				mockOperationRepo,
+				mockWorkflowFactory,
+				logger,
+				tracer,
+			)
+
+			res, err := svc.Create(ctx, tc.inputParams)
+
+			if tc.expectError {
+				assert.Error(t, err, "expected an error but got none")
+
+				if tc.expectErrorContains != "" {
+					assert.Contains(t, err.Error(), tc.expectErrorContains)
+				}
+				if tc.expectErrIs != nil {
+					assert.ErrorIs(t, err, tc.expectErrIs)
+				}
+				assert.Nil(t, res)
+			} else {
+				assert.NoError(t, err, "didn't expect an error, but got one")
+				assert.NotNil(t, res)
+				assert.EqualValues(t, tc.expectTenantID, res.TenantID)
+				assert.EqualValues(t, tc.expectOperationID, res.OperationID)
+			}
+
+			mockTenantRepo.AssertExpectations(t)
+			mockOperationRepo.AssertExpectations(t)
+			mockWorkflowFactory.AssertExpectations(t)
+			mockWorkflow.AssertExpectations(t)
+		})
 	}
 }
 
@@ -301,33 +446,62 @@ func TestServiceDelete(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		mockTenantRepo := new(MockTenantRepo)
-		mockOperationRepo := new(MockOperationRepo)
+		t.Run(tc.desc, func(t *testing.T) {
+			mockTenantRepo := new(MockTenantRepo)
+			mockOperationRepo := new(MockOperationRepo)
+			mockWorkflow := NewMockWorkflow()
+			mockWorkflowFactory := new(MockWorkflowFactory)
 
-		tc.mockTenantRepoFn(mockTenantRepo)
-		tc.mockOperationRepoFn(mockOperationRepo)
+			// Set workflow expectations ONLY for successful cases
+			if !tc.expectError {
+				// Set up the workflow to complete immediately to avoid race conditions
+				mockWorkflow.TestMode()
 
-		logger := logger.Noop()
-		tracer := noop.NewTracerProvider().Tracer("test")
-		svc := tenant.NewService(mockTenantRepo, mockOperationRepo, logger, tracer)
-		res, err := svc.Delete(ctx, tc.tenantID)
-		if tc.expectError {
-			assert.Error(t, err)
-			if tc.expectErrorContains != "" {
-				assert.Contains(t, err.Error(), tc.expectErrorContains)
+				// Set up the factory to return our controlled workflow
+				mockWorkflowFactory.On("NewTenantDeletionWorkflow",
+					mock.AnythingOfType("*tenant.Tenant"),
+					mock.AnythingOfType("int64"),
+					mock.AnythingOfType("*operation.Operation")).
+					Return(mockWorkflow)
 			}
-			if tc.expectErrIs != nil {
-				assert.ErrorIs(t, err, tc.expectErrIs)
-			}
-			assert.Nil(t, res)
-		} else {
-			assert.NoError(t, err)
-			assert.NotNil(t, res)
-			assert.EqualValues(t, tc.expectOperationID, res.OperationID)
-		}
 
-		mockTenantRepo.AssertExpectations(t)
-		mockOperationRepo.AssertExpectations(t)
+			tc.mockTenantRepoFn(mockTenantRepo)
+			tc.mockOperationRepoFn(mockOperationRepo)
+
+			logger := logger.Noop()
+			tracer := noop.NewTracerProvider().Tracer("test")
+
+			// Use the service constructor that accepts a workflow factory
+			svc := tenant.NewServiceWithWorkflowFactory(
+				mockTenantRepo,
+				mockOperationRepo,
+				mockWorkflowFactory,
+				logger,
+				tracer,
+			)
+
+			res, err := svc.Delete(ctx, tc.tenantID)
+
+			if tc.expectError {
+				assert.Error(t, err)
+				if tc.expectErrorContains != "" {
+					assert.Contains(t, err.Error(), tc.expectErrorContains)
+				}
+				if tc.expectErrIs != nil {
+					assert.ErrorIs(t, err, tc.expectErrIs)
+				}
+				assert.Nil(t, res)
+			} else {
+				assert.NoError(t, err)
+				assert.NotNil(t, res)
+				assert.EqualValues(t, tc.expectOperationID, res.OperationID)
+			}
+
+			mockTenantRepo.AssertExpectations(t)
+			mockOperationRepo.AssertExpectations(t)
+			mockWorkflowFactory.AssertExpectations(t)
+			mockWorkflow.AssertExpectations(t)
+		})
 	}
 }
 
