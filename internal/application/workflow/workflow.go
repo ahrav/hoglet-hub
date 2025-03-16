@@ -39,6 +39,46 @@ type StepResult struct {
 
 // Workflow defines the common interface for all workflow implementations.
 // Workflows are executed asynchronously and deliver results through a channel.
+//
+// Usage example:
+//
+//	// Create steps for the workflow
+//	steps := []workflow.Step{
+//		{
+//			Name:        "Validate Input",
+//			Description: "Ensures the input data is valid",
+//			Execute: func(ctx context.Context) error {
+//				// Validation logic here
+//				return nil
+//			},
+//		},
+//		{
+//			Name:        "Process Data",
+//			Description: "Processes the validated data",
+//			Execute: func(ctx context.Context) error {
+//				// Processing logic here
+//				return nil
+//			},
+//		},
+//	}
+//
+//	// Create and start the workflow
+//	wf := workflow.NewBaseWorkflow(steps)
+//	wf.Start(ctx)
+//
+//	// Wait for and process the result
+//	// Note: All workflow outcomes (success, failure, cancellation, timeout)
+//	// are delivered through the result channel
+//	result := <-wf.ResultChan()
+//	if !result.Success {
+//		log.Printf("Workflow failed: %v", result.Error)
+//		// Handle failure (could be a regular error or context cancellation)
+//		return
+//	}
+//
+//	log.Printf("Workflow completed successfully in %v",
+//		result.CompletedAt.Sub(result.StepResults[0].StartedAt))
+//	// Process successful result
 type Workflow interface {
 	Start(ctx context.Context)
 	ResultChan() <-chan WorkflowResult
@@ -75,10 +115,15 @@ func NewBaseWorkflowWithTimeout(steps []Step, timeout time.Duration) *BaseWorkfl
 }
 
 // ResultChan returns the channel that will receive the workflow execution result.
+// This channel will always receive exactly one WorkflowResult, regardless of whether
+// the workflow succeeds, fails, times out, or is cancelled. The Success field and
+// Error field of the WorkflowResult indicate the outcome.
 func (w *BaseWorkflow) ResultChan() <-chan WorkflowResult { return w.resultChan }
 
 // Start implements the Workflow interface by executing steps asynchronously
-// and sending the result to the result channel.
+// and sending the result to the result channel. All possible outcomes
+// (success, error, timeout, cancellation) are delivered through the result channel
+// as a WorkflowResult, with appropriate Success and Error fields set.
 func (w *BaseWorkflow) Start(ctx context.Context) {
 	// Create a derived context with the workflow timeout
 	timeoutCtx, cancel := context.WithTimeout(ctx, w.timeout)
@@ -92,7 +137,7 @@ func (w *BaseWorkflow) Start(ctx context.Context) {
 
 // ExecuteSteps runs all workflow steps in sequence and returns a consolidated result.
 // It stops execution on the first step failure unless the workflow defines different behavior.
-// It also handles context cancellation gracefully.
+// It also handles context cancellation gracefully by including it in the returned result.
 func (w *BaseWorkflow) ExecuteSteps(ctx context.Context) WorkflowResult {
 	result := WorkflowResult{
 		Success:     true,
