@@ -36,89 +36,89 @@ func (s *Service) GetByID(ctx context.Context, operationID int64) (*operation.Op
 	return op, nil
 }
 
-// StartOperation transitions an operation from pending to in-progress state.
-// This is typically called when execution of the operation begins.
-func (s *Service) StartOperation(ctx context.Context, operationID int64) error {
-	op, err := s.repo.FindByID(ctx, operationID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve operation: %w", err)
-	}
+// // StartOperation transitions an operation from pending to in-progress state.
+// // This is typically called when execution of the operation begins.
+// func (s *Service) StartOperation(ctx context.Context, operationID int64) error {
+// 	op, err := s.repo.FindByID(ctx, operationID)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to retrieve operation: %w", err)
+// 	}
 
-	if op == nil {
-		return operation.ErrOperationNotFound
-	}
+// 	if op == nil {
+// 		return operation.ErrOperationNotFound
+// 	}
 
-	op.Start()
+// 	op.Start()
 
-	if err := s.repo.Update(ctx, op); err != nil {
-		return fmt.Errorf("failed to update operation: %w", err)
-	}
+// 	if err := s.repo.Update(ctx, op); err != nil {
+// 		return fmt.Errorf("failed to update operation: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// CompleteOperation marks an operation as successfully completed with result data.
-// The result map contains operation-specific outputs needed by consumers.
-func (s *Service) CompleteOperation(ctx context.Context, operationID int64, result map[string]interface{}) error {
-	op, err := s.repo.FindByID(ctx, operationID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve operation: %w", err)
-	}
+// // CompleteOperation marks an operation as successfully completed with result data.
+// // The result map contains operation-specific outputs needed by consumers.
+// func (s *Service) CompleteOperation(ctx context.Context, operationID int64, result map[string]interface{}) error {
+// 	op, err := s.repo.FindByID(ctx, operationID)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to retrieve operation: %w", err)
+// 	}
 
-	if op == nil {
-		return operation.ErrOperationNotFound
-	}
+// 	if op == nil {
+// 		return operation.ErrOperationNotFound
+// 	}
 
-	op.Complete(result)
+// 	op.Complete(result)
 
-	if err := s.repo.Update(ctx, op); err != nil {
-		return fmt.Errorf("failed to update operation: %w", err)
-	}
+// 	if err := s.repo.Update(ctx, op); err != nil {
+// 		return fmt.Errorf("failed to update operation: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// FailOperation marks an operation as failed with a specific error message.
-// Used when an operation encounters an unrecoverable error condition.
-func (s *Service) FailOperation(ctx context.Context, operationID int64, errorMsg string) error {
-	op, err := s.repo.FindByID(ctx, operationID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve operation: %w", err)
-	}
+// // FailOperation marks an operation as failed with a specific error message.
+// // Used when an operation encounters an unrecoverable error condition.
+// func (s *Service) FailOperation(ctx context.Context, operationID int64, errorMsg string) error {
+// 	op, err := s.repo.FindByID(ctx, operationID)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to retrieve operation: %w", err)
+// 	}
 
-	if op == nil {
-		return operation.ErrOperationNotFound
-	}
+// 	if op == nil {
+// 		return operation.ErrOperationNotFound
+// 	}
 
-	op.Fail(errorMsg)
+// 	op.Fail(errorMsg)
 
-	if err := s.repo.Update(ctx, op); err != nil {
-		return fmt.Errorf("failed to update operation: %w", err)
-	}
+// 	if err := s.repo.Update(ctx, op); err != nil {
+// 		return fmt.Errorf("failed to update operation: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
-// CancelOperation marks an operation as cancelled with a reason.
-// Used when an operation is deliberately halted before completion.
-func (s *Service) CancelOperation(ctx context.Context, operationID int64, reason string) error {
-	op, err := s.repo.FindByID(ctx, operationID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve operation: %w", err)
-	}
+// // CancelOperation marks an operation as cancelled with a reason.
+// // Used when an operation is deliberately halted before completion.
+// func (s *Service) CancelOperation(ctx context.Context, operationID int64, reason string) error {
+// 	op, err := s.repo.FindByID(ctx, operationID)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to retrieve operation: %w", err)
+// 	}
 
-	if op == nil {
-		return operation.ErrOperationNotFound
-	}
+// 	if op == nil {
+// 		return operation.ErrOperationNotFound
+// 	}
 
-	op.Cancel(reason)
+// 	op.Cancel(reason)
 
-	if err := s.repo.Update(ctx, op); err != nil {
-		return fmt.Errorf("failed to update operation: %w", err)
-	}
+// 	if err := s.repo.Update(ctx, op); err != nil {
+// 		return fmt.Errorf("failed to update operation: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
 
 // ListIncompleteOperations returns all operations that haven't reached a terminal state.
 // Useful for finding operations that may need attention or monitoring.
@@ -202,31 +202,31 @@ func (s *Service) GetOperationEstimatedCompletion(ctx context.Context, operation
 	return estimatedTime, nil
 }
 
-// RetryOperation attempts to restart a failed operation from its beginning.
-// Only operations in certain states (like failed) can be retried.
-func (s *Service) RetryOperation(ctx context.Context, operationID int64) error {
-	op, err := s.repo.FindByID(ctx, operationID)
-	if err != nil {
-		return fmt.Errorf("failed to retrieve operation: %w", err)
-	}
+// // RetryOperation attempts to restart a failed operation from its beginning.
+// // Only operations in certain states (like failed) can be retried.
+// func (s *Service) RetryOperation(ctx context.Context, operationID int64) error {
+// 	op, err := s.repo.FindByID(ctx, operationID)
+// 	if err != nil {
+// 		return fmt.Errorf("failed to retrieve operation: %w", err)
+// 	}
 
-	if op == nil {
-		return operation.ErrOperationNotFound
-	}
+// 	if op == nil {
+// 		return operation.ErrOperationNotFound
+// 	}
 
-	if !op.IsRetryable() {
-		return fmt.Errorf("operation cannot be retried")
-	}
+// 	if !op.IsRetryable() {
+// 		return fmt.Errorf("operation cannot be retried")
+// 	}
 
-	// Reset operation to pending state
-	op.Status = operation.StatusPending
-	op.ErrorMessage = nil
-	now := time.Now()
-	op.UpdatedAt = &now
+// 	// Reset operation to pending state
+// 	op.Status = operation.StatusPending
+// 	op.ErrorMessage = nil
+// 	now := time.Now()
+// 	op.UpdatedAt = &now
 
-	if err := s.repo.Update(ctx, op); err != nil {
-		return fmt.Errorf("failed to update operation: %w", err)
-	}
+// 	if err := s.repo.Update(ctx, op); err != nil {
+// 		return fmt.Errorf("failed to update operation: %w", err)
+// 	}
 
-	return nil
-}
+// 	return nil
+// }
