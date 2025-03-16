@@ -8,9 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/ahrav/hoglet-hub/internal/application/operation"
 	domainOp "github.com/ahrav/hoglet-hub/internal/domain/operation"
+	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 )
 
 type MockOperationRepo struct{ mock.Mock }
@@ -96,7 +98,9 @@ func TestOperationService_GetByID(t *testing.T) {
 		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
-		svc := operation.NewService(mockRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := operation.NewService(mockRepo, logger, tracer)
 		op, err := svc.GetByID(ctx, tc.operationID)
 		if tc.wantError {
 			assert.Error(t, err, "expected an error")
@@ -476,7 +480,9 @@ func TestOperationService_ListIncompleteOperations(t *testing.T) {
 		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
-		svc := operation.NewService(mockRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := operation.NewService(mockRepo, logger, tracer)
 		ops, err := svc.ListIncompleteOperations(ctx)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -546,7 +552,9 @@ func TestOperationService_ListStalledOperations(t *testing.T) {
 		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
-		svc := operation.NewService(mockRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := operation.NewService(mockRepo, logger, tracer)
 		stalled, err := svc.ListStalledOperations(ctx, tc.threshold)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -608,7 +616,9 @@ func TestOperationService_GetOperationsByTenant(t *testing.T) {
 		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
-		svc := operation.NewService(mockRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := operation.NewService(mockRepo, logger, tracer)
 		ops, err := svc.GetOperationsByTenant(ctx, tc.tenantID)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -694,7 +704,9 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
-		svc := operation.NewService(mockRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := operation.NewService(mockRepo, logger, tracer)
 		prog, err := svc.GetOperationProgress(ctx, tc.opID)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -770,7 +782,9 @@ func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
-		svc := operation.NewService(mockRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := operation.NewService(mockRepo, logger, tracer)
 		est, err := svc.GetOperationEstimatedCompletion(ctx, tc.opID)
 		if tc.wantError {
 			assert.Error(t, err)
