@@ -111,7 +111,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 	creationWorkflow.Start(ctx)
 
 	// Set up goroutine to handle workflow completion and cleanup.
-	go s.handleWorkflowCompletion(operationID, creationWorkflow.ResultChan())
+	go s.handleWorkflowCompletion(operationID, creationWorkflow)
 
 	return &CreateResult{TenantID: tenantID, OperationID: operationID, Workflow: creationWorkflow}, nil
 }
@@ -153,12 +153,9 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 	deletionWorkflow.Start(ctx)
 
 	// Set up goroutine to handle workflow completion and cleanup.
-	go s.handleWorkflowCompletion(operationID, deletionWorkflow.ResultChan())
+	go s.handleWorkflowCompletion(operationID, deletionWorkflow)
 
-	return &DeleteResult{
-		OperationID: operationID,
-		Workflow:    deletionWorkflow,
-	}, nil
+	return &DeleteResult{OperationID: operationID, Workflow: deletionWorkflow}, nil
 }
 
 // GetOperationStatus retrieves the current status of an operation.
@@ -178,8 +175,9 @@ func (s *Service) GetOperationStatus(ctx context.Context, operationID int64) (*o
 
 // handleWorkflowCompletion cleans up workflow resources after completion.
 // This prevents memory leaks by removing references to completed workflows.
-func (s *Service) handleWorkflowCompletion(operationID int64, resultChan <-chan workflow.WorkflowResult) {
+func (s *Service) handleWorkflowCompletion(operationID int64, workflow workflow.Workflow) {
 	// Wait for workflow to complete.
-	<-resultChan
+	// TODO: Handle the result we get back.
+	<-workflow.ResultChan()
 	delete(s.activeWorkflows, operationID)
 }
