@@ -93,13 +93,10 @@ func TestOperationService_GetByID(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		op, err := svc.GetByID(ctx, tc.operationID)
 		if tc.wantError {
 			assert.Error(t, err, "expected an error")
@@ -118,10 +115,6 @@ func TestOperationService_GetByID(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: StartOperation
-//
 
 func TestOperationService_StartOperation(t *testing.T) {
 	ctx := context.Background()
@@ -182,13 +175,10 @@ func TestOperationService_StartOperation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		err := svc.StartOperation(ctx, tc.operationID)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -204,10 +194,6 @@ func TestOperationService_StartOperation(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: CompleteOperation
-//
 
 func TestOperationService_CompleteOperation(t *testing.T) {
 	ctx := context.Background()
@@ -270,13 +256,10 @@ func TestOperationService_CompleteOperation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		err := svc.CompleteOperation(ctx, tc.operationID, tc.result)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -292,10 +275,6 @@ func TestOperationService_CompleteOperation(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: FailOperation
-//
 
 func TestOperationService_FailOperation(t *testing.T) {
 	ctx := context.Background()
@@ -357,13 +336,10 @@ func TestOperationService_FailOperation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		err := svc.FailOperation(ctx, tc.operationID, tc.errorMsg)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -379,10 +355,6 @@ func TestOperationService_FailOperation(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: CancelOperation
-//
 
 func TestOperationService_CancelOperation(t *testing.T) {
 	ctx := context.Background()
@@ -444,13 +416,10 @@ func TestOperationService_CancelOperation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		err := svc.CancelOperation(ctx, tc.operationID, tc.reason)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -467,10 +436,6 @@ func TestOperationService_CancelOperation(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: ListIncompleteOperations
-//
 
 func TestOperationService_ListIncompleteOperations(t *testing.T) {
 	ctx := context.Background()
@@ -508,12 +473,10 @@ func TestOperationService_ListIncompleteOperations(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
-		svc := operation.NewService(mockRepo)
 
+		svc := operation.NewService(mockRepo)
 		ops, err := svc.ListIncompleteOperations(ctx)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -529,10 +492,6 @@ func TestOperationService_ListIncompleteOperations(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: ListStalledOperations
-//
 
 func TestOperationService_ListStalledOperations(t *testing.T) {
 	ctx := context.Background()
@@ -584,13 +543,10 @@ func TestOperationService_ListStalledOperations(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		stalled, err := svc.ListStalledOperations(ctx, tc.threshold)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -600,7 +556,6 @@ func TestOperationService_ListStalledOperations(t *testing.T) {
 			assert.Nil(t, stalled)
 		} else {
 			assert.NoError(t, err)
-			// Check the IDs quickly
 			var ids []int64
 			for _, op := range stalled {
 				ids = append(ids, op.ID)
@@ -610,10 +565,6 @@ func TestOperationService_ListStalledOperations(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: GetOperationsByTenant
-//
 
 func TestOperationService_GetOperationsByTenant(t *testing.T) {
 	ctx := context.Background()
@@ -654,13 +605,10 @@ func TestOperationService_GetOperationsByTenant(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		ops, err := svc.GetOperationsByTenant(ctx, tc.tenantID)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -675,10 +623,6 @@ func TestOperationService_GetOperationsByTenant(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: GetOperationProgress
-//
 
 func TestOperationService_GetOperationProgress(t *testing.T) {
 	ctx := context.Background()
@@ -742,18 +686,15 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 				m.On("FindByID", ctx, int64(54)).
 					Return(op, nil)
 			},
-			// We won't necessarily know the exact value, but let's just ensure no error
+			// We won't necessarily know the exact value, but let's just ensure no error.
 		},
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		prog, err := svc.GetOperationProgress(ctx, tc.opID)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -762,19 +703,15 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 			}
 		} else {
 			assert.NoError(t, err)
-			// If we do have a wantProgress, check it
+			// If we do have a wantProgress, check it.
 			if tc.wantProgress != 0 {
-				// Some minimal check
+				// Some minimal check.
 				assert.Equal(t, tc.wantProgress, prog)
 			}
 		}
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: GetOperationEstimatedCompletion
-//
 
 func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 	ctx := context.Background()
@@ -830,13 +767,10 @@ func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
-
 		est, err := svc.GetOperationEstimatedCompletion(ctx, tc.opID)
 		if tc.wantError {
 			assert.Error(t, err)
@@ -855,10 +789,6 @@ func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 		mockRepo.AssertExpectations(t)
 	}
 }
-
-//
-// Test: RetryOperation
-//
 
 func TestOperationService_RetryOperation(t *testing.T) {
 	ctx := context.Background()
@@ -927,14 +857,11 @@ func TestOperationService_RetryOperation(t *testing.T) {
 	}
 
 	for _, tc := range testCases {
-		t.Logf("Case: %s", tc.desc)
-
-		mockRepo := &MockOperationRepo{}
+		mockRepo := new(MockOperationRepo)
 		tc.mockSetup(mockRepo)
 
 		svc := operation.NewService(mockRepo)
 		err := svc.RetryOperation(ctx, tc.opID)
-
 		if tc.wantError {
 			assert.Error(t, err)
 			if tc.wantErrorMatch != "" {
