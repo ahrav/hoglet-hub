@@ -8,9 +8,9 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.opentelemetry.io/otel/trace"
 
-	"github.com/ahrav/hoglet-hub/internal/api/mid"
 	operationApp "github.com/ahrav/hoglet-hub/internal/application/operation"
 	tenantApp "github.com/ahrav/hoglet-hub/internal/application/tenant"
+	"github.com/ahrav/hoglet-hub/internal/sdk/mid"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 	"github.com/ahrav/hoglet-hub/pkg/web"
 )

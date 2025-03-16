@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"path"
 
-	"github.com/ahrav/hoglet-hub/internal/api/errs"
+	"github.com/ahrav/hoglet-hub/internal/sdk/errs"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 	"github.com/ahrav/hoglet-hub/pkg/common/otel"
 	"github.com/ahrav/hoglet-hub/pkg/web"

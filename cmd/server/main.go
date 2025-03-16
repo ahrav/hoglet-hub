@@ -22,14 +22,14 @@ import (
 	"github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/automaxprocs/maxprocs"
 
-	"github.com/ahrav/hoglet-hub/internal/api/debug"
-	"github.com/ahrav/hoglet-hub/internal/api/mux"
 	operationApp "github.com/ahrav/hoglet-hub/internal/application/operation"
 	tenantApp "github.com/ahrav/hoglet-hub/internal/application/tenant"
 	httpServer "github.com/ahrav/hoglet-hub/internal/infra/adapters/http"
 	handler "github.com/ahrav/hoglet-hub/internal/infra/adapters/http/handler"
 	operationRepo "github.com/ahrav/hoglet-hub/internal/infra/storage/operation/postgres"
 	tenantRepo "github.com/ahrav/hoglet-hub/internal/infra/storage/tenant/postgres"
+	"github.com/ahrav/hoglet-hub/internal/sdk/debug"
+	"github.com/ahrav/hoglet-hub/internal/sdk/mux"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 	"github.com/ahrav/hoglet-hub/pkg/common/otel"
 )
