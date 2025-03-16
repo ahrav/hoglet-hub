@@ -16,6 +16,7 @@ import (
 	"github.com/exaring/otelpgx"
 	"github.com/golang-migrate/migrate/v4"
 	"github.com/golang-migrate/migrate/v4/database/pgx"
+	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/automaxprocs/maxprocs"
@@ -173,9 +174,11 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 		ServiceName:      cfg.Tempo.ServiceName,
 		ExporterEndpoint: cfg.Tempo.Host,
 		ExcludedRoutes: map[string]struct{}{
-			"/debug/pprof/": {},
-			"/debug/vars":   {},
-			"/healthz":      {},
+			"/api/v1/health/readiness": {},
+			"/api/v1/health/liveness":  {},
+			"/debug/pprof/":            {},
+			"/debug/vars":              {},
+			"/healthz":                 {},
 		},
 		Probability: cfg.Tempo.Probability,
 		ResourceAttributes: map[string]string{
