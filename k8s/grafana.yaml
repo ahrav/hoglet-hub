@@ -1,0 +1,145 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasources
+  namespace: hoglet-hub
+data:
+  datasources.yaml: |
+    apiVersion: 1
+
+    deleteDatasources:
+      - name: Tempo
+        orgId: 1
+      - name: Prometheus
+        orgId: 1
+
+    datasources:
+      - name: Tempo
+        type: tempo
+        url: http://tempo:3200
+        access: proxy
+        jsonData:
+          tracesToMetrics:
+            datasourceUid: 'Prometheus'
+            tags: [
+              { key: 'k8s.pod.name', value: 'pod' },
+              { key: 'k8s.namespace' },
+              { key: 'service.name' }
+            ]
+          serviceMap:
+            datasourceUid: 'Prometheus'
+          nodeGraph:
+            enabled: true
+          search:
+            hide: false
+          spanBar:
+            type: 'Tag'
+            tag: 'k8s.pod.name'
+        version: 1
+        editable: true
+
+      - name: Prometheus
+        type: prometheus
+        url: http://prometheus:9090
+        access: proxy
+        jsonData:
+          httpMethod: POST
+          prometheusType: Prometheus
+          prometheusVersion: 2.44.0
+          exemplarTraceIdDestinations:
+            - name: trace_id
+              datasourceUid: Tempo
+
+      - name: Loki
+        type: loki
+        url: http://loki:3100
+        access: proxy
+        jsonData:
+          maxLines: 1000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grafana
+  namespace: hoglet-hub
+  labels:
+    app: grafana
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grafana
+  template:
+    metadata:
+      labels:
+        app: grafana
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "3000"
+    spec:
+      containers:
+        - name: grafana
+          image: grafana/grafana:11.4.0
+          ports:
+            - containerPort: 3000
+              name: http-grafana
+          env:
+            - name: GF_FEATURE_TOGGLES_ENABLE
+              value: "traceqlEditor"
+            - name: GF_AUTH_ANONYMOUS_ENABLED
+              value: "true"
+            - name: GF_AUTH_ANONYMOUS_ORG_ROLE
+              value: "Admin"
+            - name: GF_AUTH_DISABLE_LOGIN_FORM
+              value: "true"
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 10
+            timeoutSeconds: 2
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 30
+            timeoutSeconds: 2
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          volumeMounts:
+            - name: datasources
+              mountPath: /etc/grafana/provisioning/datasources
+            - name: dashboards-provisioning
+              mountPath: /etc/grafana/provisioning/dashboards
+            - name: dashboards-json
+              mountPath: /etc/grafana/dashboards
+      volumes:
+        - name: datasources
+          configMap:
+            name: grafana-datasources
+        - name: dashboards-provisioning
+          configMap:
+            name: grafana-dashboards-provisioning
+        - name: dashboards-json
+          configMap:
+            name: grafana-dashboards
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: hoglet-hub
+spec:
+  type: ClusterIP
+  ports:
+    - port: 3000
+      targetPort: http-grafana
+      protocol: TCP
+      name: http
+  selector:
+    app: grafana

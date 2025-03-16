@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: hoglet-hub-sa
+  namespace: hoglet-hub
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: hoglet-hub-role
+  namespace: hoglet-hub
+rules:
+# Add your permissions here...
+- apiGroups: [""]
+  resources: ["pods", "services", "configmaps", "secrets", "namespaces"]
+  verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: hoglet-hub-role-binding
+  namespace: hoglet-hub
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: hoglet-hub-role
+subjects:
+- kind: ServiceAccount
+  name: hoglet-hub-sa
+  namespace: hoglet-hub
