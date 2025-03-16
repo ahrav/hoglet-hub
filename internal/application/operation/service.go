@@ -284,10 +284,12 @@ func (s *Service) GetOperationEstimatedCompletion(ctx context.Context, operation
 
 	estimatedTime := op.EstimateCompletionTime()
 
-	s.logger.Info(ctx, "operation estimated completion time retrieved", "operation_id", operationID, "estimated_time", estimatedTime)
-	span.AddEvent("operation estimated completion time retrieved", trace.WithAttributes(
-		attribute.String("estimated_time", estimatedTime.String()),
-	))
+	s.logger.Info(ctx,
+		"operation estimated completion time retrieved",
+		"operation_id", operationID,
+		"estimated_time", estimatedTime,
+	)
+	span.AddEvent("operation estimated completion time retrieved")
 	span.SetStatus(codes.Ok, "operation estimated completion time retrieved")
 
 	return estimatedTime, nil

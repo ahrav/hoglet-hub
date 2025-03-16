@@ -72,6 +72,7 @@ func NewService(
 
 // Create initiates tenant creation and returns tenant ID and operation information.
 // It performs validation, creates necessary domain entities, and launches an async workflow.
+// TODO: Come back and deal with isolation group ID.
 func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResult, error) {
 	name, region, tier, isolationGroupID := params.Name, params.Region, params.Tier, params.IsolationGroupID
 	logger := logger.NewLoggerContext(s.logger.With(
@@ -79,13 +80,11 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 		"tenant_name", name,
 		"region", region,
 		"tier", tier,
-		"isolation_group_id", isolationGroupID,
 	))
 	ctx, span := s.tracer.Start(ctx, "tenant.Create", trace.WithAttributes(
 		attribute.String("name", name),
 		attribute.String("region", string(region)),
 		attribute.String("tier", string(tier)),
-		attribute.Int64("isolation_group_id", *isolationGroupID),
 	))
 	defer span.End()
 

@@ -93,9 +93,7 @@ type MockWorkflow struct {
 var _ workflow.Workflow = (*MockWorkflow)(nil)
 
 func NewMockWorkflow() *MockWorkflow {
-	return &MockWorkflow{
-		resultChan: make(chan workflow.WorkflowResult, 1),
-	}
+	return &MockWorkflow{resultChan: make(chan workflow.WorkflowResult, 1)}
 }
 
 func (m *MockWorkflow) Start(ctx context.Context) {
@@ -136,7 +134,7 @@ func TestServiceCreate(t *testing.T) {
 		{
 			desc: "error on FindByName",
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByName", ctx, "my-tenant").
+				m.On("FindByName", mock.Anything, "my-tenant").
 					Return((*tenantDomain.Tenant)(nil), errors.New("DB error"))
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {},
@@ -147,7 +145,7 @@ func TestServiceCreate(t *testing.T) {
 		{
 			desc: "tenant already exists",
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByName", ctx, "my-tenant").
+				m.On("FindByName", mock.Anything, "my-tenant").
 					Return(&tenantDomain.Tenant{ID: 123, Name: "my-tenant"}, nil)
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {},
@@ -158,26 +156,26 @@ func TestServiceCreate(t *testing.T) {
 		{
 			desc: "error on tenantRepo.Create",
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByName", ctx, "my-tenant").
+				m.On("FindByName", mock.Anything, "my-tenant").
 					Return((*tenantDomain.Tenant)(nil), tenantDomain.ErrTenantNotFound)
-				m.On("Create", ctx, mock.AnythingOfType("*tenant.Tenant")).
+				m.On("Create", mock.Anything, mock.AnythingOfType("*tenant.Tenant")).
 					Return(int64(0), errors.New("create error"))
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {},
 			inputParams:         validParams,
 			expectError:         true,
-			expectErrorContains: "failed to create tenant",
+			expectErrorContains: "failed to persist tenant",
 		},
 		{
 			desc: "error on operationRepo.Create",
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByName", ctx, "my-tenant").
+				m.On("FindByName", mock.Anything, "my-tenant").
 					Return((*tenantDomain.Tenant)(nil), tenantDomain.ErrTenantNotFound)
-				m.On("Create", ctx, mock.AnythingOfType("*tenant.Tenant")).
+				m.On("Create", mock.Anything, mock.AnythingOfType("*tenant.Tenant")).
 					Return(int64(123), nil)
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {
-				m.On("Create", ctx, mock.AnythingOfType("*operation.Operation")).
+				m.On("Create", mock.Anything, mock.AnythingOfType("*operation.Operation")).
 					Return(int64(0), errors.New("op creation error"))
 			},
 			inputParams:         validParams,
@@ -187,13 +185,13 @@ func TestServiceCreate(t *testing.T) {
 		{
 			desc: "successful create",
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByName", ctx, "my-tenant").
+				m.On("FindByName", mock.Anything, "my-tenant").
 					Return((*tenantDomain.Tenant)(nil), tenantDomain.ErrTenantNotFound)
-				m.On("Create", ctx, mock.AnythingOfType("*tenant.Tenant")).
+				m.On("Create", mock.Anything, mock.AnythingOfType("*tenant.Tenant")).
 					Return(int64(123), nil)
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {
-				m.On("Create", ctx, mock.AnythingOfType("*operation.Operation")).
+				m.On("Create", mock.Anything, mock.AnythingOfType("*operation.Operation")).
 					Return(int64(456), nil)
 			},
 			inputParams:       validParams,
@@ -254,7 +252,7 @@ func TestServiceDelete(t *testing.T) {
 			desc:     "error finding tenant",
 			tenantID: 999,
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByID", ctx, int64(999)).
+				m.On("FindByID", mock.Anything, int64(999)).
 					Return((*tenantDomain.Tenant)(nil), errors.New("DB error"))
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {},
@@ -265,7 +263,7 @@ func TestServiceDelete(t *testing.T) {
 			desc:     "tenant not found",
 			tenantID: 999,
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByID", ctx, int64(999)).
+				m.On("FindByID", mock.Anything, int64(999)).
 					Return((*tenantDomain.Tenant)(nil), nil)
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {},
@@ -276,11 +274,11 @@ func TestServiceDelete(t *testing.T) {
 			desc:     "error creating operation",
 			tenantID: 123,
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByID", ctx, int64(123)).
+				m.On("FindByID", mock.Anything, int64(123)).
 					Return(&tenantDomain.Tenant{ID: 123}, nil)
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {
-				m.On("Create", ctx, mock.AnythingOfType("*operation.Operation")).
+				m.On("Create", mock.Anything, mock.AnythingOfType("*operation.Operation")).
 					Return(int64(0), errors.New("op creation error"))
 			},
 			expectError:         true,
@@ -290,11 +288,11 @@ func TestServiceDelete(t *testing.T) {
 			desc:     "successful delete",
 			tenantID: 123,
 			mockTenantRepoFn: func(m *MockTenantRepo) {
-				m.On("FindByID", ctx, int64(123)).
+				m.On("FindByID", mock.Anything, int64(123)).
 					Return(&tenantDomain.Tenant{ID: 123, Name: "my-tenant"}, nil)
 			},
 			mockOperationRepoFn: func(m *MockOperationRepo) {
-				m.On("Create", ctx, mock.AnythingOfType("*operation.Operation")).
+				m.On("Create", mock.Anything, mock.AnythingOfType("*operation.Operation")).
 					Return(int64(456), nil)
 			},
 			expectError:       false,
@@ -349,7 +347,7 @@ func TestServiceGetOperationStatus(t *testing.T) {
 			desc:        "operation not found",
 			operationID: 999,
 			mockOperationRepoFn: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(999)).
+				m.On("FindByID", mock.Anything, int64(999)).
 					Return((*operation.Operation)(nil), nil)
 			},
 			expectError: true,
@@ -363,7 +361,7 @@ func TestServiceGetOperationStatus(t *testing.T) {
 					ID:       123,
 					TenantID: &tenantID,
 				}
-				m.On("FindByID", ctx, int64(123)).
+				m.On("FindByID", mock.Anything, int64(123)).
 					Return(op, nil)
 			},
 			expectError: false,

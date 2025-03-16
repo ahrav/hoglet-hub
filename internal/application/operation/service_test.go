@@ -67,7 +67,7 @@ func TestOperationService_GetByID(t *testing.T) {
 			desc:        "repo returns error",
 			operationID: 99,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(99)).
+				m.On("FindByID", mock.Anything, int64(99)).
 					Return((*domainOp.Operation)(nil), errors.New("some DB error"))
 			},
 			wantError:      true,
@@ -77,7 +77,7 @@ func TestOperationService_GetByID(t *testing.T) {
 			desc:        "operation not found",
 			operationID: 101,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(101)).
+				m.On("FindByID", mock.Anything, int64(101)).
 					Return((*domainOp.Operation)(nil), nil)
 			},
 			wantError:   true,
@@ -87,7 +87,7 @@ func TestOperationService_GetByID(t *testing.T) {
 			desc:        "successful retrieval",
 			operationID: 10,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(10)).
+				m.On("FindByID", mock.Anything, int64(10)).
 					Return(&domainOp.Operation{ID: 10, Status: domainOp.StatusPending}, nil)
 			},
 			wantOp: &domainOp.Operation{ID: 10, Status: domainOp.StatusPending},
@@ -454,7 +454,7 @@ func TestOperationService_ListIncompleteOperations(t *testing.T) {
 		{
 			desc: "repo returns error",
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindIncomplete", ctx).
+				m.On("FindIncomplete", mock.Anything).
 					Return(([]*domainOp.Operation)(nil), errors.New("db error"))
 			},
 			wantError:      true,
@@ -467,7 +467,7 @@ func TestOperationService_ListIncompleteOperations(t *testing.T) {
 					{ID: 1, Status: domainOp.StatusPending},
 					{ID: 2, Status: domainOp.StatusInProgress},
 				}
-				m.On("FindIncomplete", ctx).Return(ops, nil)
+				m.On("FindIncomplete", mock.Anything).Return(ops, nil)
 			},
 			wantOps: []*domainOp.Operation{
 				{ID: 1, Status: domainOp.StatusPending},
@@ -518,7 +518,7 @@ func TestOperationService_ListStalledOperations(t *testing.T) {
 			desc:      "repo error",
 			threshold: 1 * time.Minute,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByStatus", ctx, domainOp.StatusInProgress).
+				m.On("FindByStatus", mock.Anything, domainOp.StatusInProgress).
 					Return(([]*domainOp.Operation)(nil), errors.New("db error"))
 			},
 			wantError:      true,
@@ -528,7 +528,7 @@ func TestOperationService_ListStalledOperations(t *testing.T) {
 			desc:      "no in-progress ops returned",
 			threshold: 60 * time.Second,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByStatus", ctx, domainOp.StatusInProgress).
+				m.On("FindByStatus", mock.Anything, domainOp.StatusInProgress).
 					Return([]*domainOp.Operation{}, nil)
 			},
 			wantOps: nil,
@@ -542,7 +542,7 @@ func TestOperationService_ListStalledOperations(t *testing.T) {
 					{ID: 2, Status: domainOp.StatusInProgress, StartedAt: &longRunning}, // 90s old -> stalled
 					{ID: 3, Status: domainOp.StatusInProgress, StartedAt: nil},          // no start time -> skip or consider 0
 				}
-				m.On("FindByStatus", ctx, domainOp.StatusInProgress).Return(ops, nil)
+				m.On("FindByStatus", mock.Anything, domainOp.StatusInProgress).Return(ops, nil)
 			},
 			wantOps: []int64{2}, // #2 is older than 60s
 		},
@@ -589,7 +589,7 @@ func TestOperationService_GetOperationsByTenant(t *testing.T) {
 			desc:     "db error",
 			tenantID: 999,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByTenantID", ctx, int64(999)).
+				m.On("FindByTenantID", mock.Anything, int64(999)).
 					Return(([]*domainOp.Operation)(nil), errors.New("db error"))
 			},
 			wantError:      true,
@@ -603,7 +603,7 @@ func TestOperationService_GetOperationsByTenant(t *testing.T) {
 					{ID: 1, TenantID: &[]int64{100}[0]},
 					{ID: 2, TenantID: &[]int64{100}[0]},
 				}
-				m.On("FindByTenantID", ctx, int64(100)).Return(ops, nil)
+				m.On("FindByTenantID", mock.Anything, int64(100)).Return(ops, nil)
 			},
 			wantOps: []*domainOp.Operation{
 				{ID: 1, TenantID: &[]int64{100}[0]},
@@ -649,7 +649,7 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 			desc: "db error",
 			opID: 50,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(50)).
+				m.On("FindByID", mock.Anything, int64(50)).
 					Return((*domainOp.Operation)(nil), errors.New("db error"))
 			},
 			wantError:      true,
@@ -659,7 +659,7 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 			desc: "not found",
 			opID: 51,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(51)).
+				m.On("FindByID", mock.Anything, int64(51)).
 					Return((*domainOp.Operation)(nil), nil)
 			},
 			wantError:      true,
@@ -671,7 +671,7 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 			mockSetup: func(m *MockOperationRepo) {
 				eMsg := "some fail"
 				op := &domainOp.Operation{ID: 52, Status: domainOp.StatusFailed, ErrorMessage: &eMsg}
-				m.On("FindByID", ctx, int64(52)).
+				m.On("FindByID", mock.Anything, int64(52)).
 					Return(op, nil)
 			},
 			wantError:      true,
@@ -682,7 +682,7 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 			opID: 53,
 			mockSetup: func(m *MockOperationRepo) {
 				op := &domainOp.Operation{ID: 53, Status: domainOp.StatusPending}
-				m.On("FindByID", ctx, int64(53)).
+				m.On("FindByID", mock.Anything, int64(53)).
 					Return(op, nil)
 			},
 			wantProgress: 0,
@@ -693,7 +693,7 @@ func TestOperationService_GetOperationProgress(t *testing.T) {
 			mockSetup: func(m *MockOperationRepo) {
 				started := time.Now().Add(-1 * time.Minute)
 				op := &domainOp.Operation{ID: 54, Status: domainOp.StatusInProgress, StartedAt: &started}
-				m.On("FindByID", ctx, int64(54)).
+				m.On("FindByID", mock.Anything, int64(54)).
 					Return(op, nil)
 			},
 			// We won't necessarily know the exact value, but let's just ensure no error.
@@ -740,7 +740,7 @@ func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 			desc: "db error",
 			opID: 60,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(60)).
+				m.On("FindByID", mock.Anything, int64(60)).
 					Return((*domainOp.Operation)(nil), errors.New("db error"))
 			},
 			wantError:      true,
@@ -750,7 +750,7 @@ func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 			desc: "not found",
 			opID: 61,
 			mockSetup: func(m *MockOperationRepo) {
-				m.On("FindByID", ctx, int64(61)).
+				m.On("FindByID", mock.Anything, int64(61)).
 					Return((*domainOp.Operation)(nil), nil)
 			},
 			wantError:      true,
@@ -762,7 +762,7 @@ func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 			mockSetup: func(m *MockOperationRepo) {
 				cTime := time.Now()
 				op := &domainOp.Operation{ID: 62, Status: domainOp.StatusCompleted, CompletedAt: &cTime}
-				m.On("FindByID", ctx, int64(62)).
+				m.On("FindByID", mock.Anything, int64(62)).
 					Return(op, nil)
 			},
 			wantNil: true,
@@ -772,7 +772,7 @@ func TestOperationService_GetOperationEstimatedCompletion(t *testing.T) {
 			opID: 63,
 			mockSetup: func(m *MockOperationRepo) {
 				op := &domainOp.Operation{ID: 63, Status: domainOp.StatusPending, CreatedAt: time.Now()}
-				m.On("FindByID", ctx, int64(63)).
+				m.On("FindByID", mock.Anything, int64(63)).
 					Return(op, nil)
 			},
 		},
