@@ -102,7 +102,12 @@ type Operation struct {
 // NewTenantCreateOperation creates a new tenant creation operation.
 // This is a convenience function that sets up the appropriate parameters
 // for creating a tenant.
-func NewTenantCreateOperation(tenantID int64, name string, region, tier string, isolationGroupID *int64) (*Operation, error) {
+func NewTenantCreateOperation(
+	tenantID int64,
+	name string,
+	region, tier string,
+	isolationGroupID *int64,
+) (*Operation, error) {
 	params := map[string]any{
 		"name":   name,
 		"region": region,
