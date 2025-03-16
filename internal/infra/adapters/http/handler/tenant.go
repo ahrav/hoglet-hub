@@ -19,9 +19,7 @@ type TenantHandler struct {
 // NewTenantHandler creates a new tenant handler with the provided tenant service.
 // The tenant service is used to execute the business logic for tenant operations.
 func NewTenantHandler(tenantService *appTenant.Service) *TenantHandler {
-	return &TenantHandler{
-		tenantService: tenantService,
-	}
+	return &TenantHandler{tenantService: tenantService}
 }
 
 // CreateTenant handles tenant creation requests by validating input,

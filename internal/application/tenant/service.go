@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/ahrav/hoglet-hub/internal/application/workflow"
 	"github.com/ahrav/hoglet-hub/internal/domain/operation"
@@ -40,6 +41,7 @@ type Service struct {
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
 	// Track active workflows for monitoring and management.
+	mu              sync.RWMutex
 	activeWorkflows map[int64]workflow.Workflow
 }
 
@@ -105,7 +107,9 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 		s.operationRepo,
 	)
 
+	s.mu.Lock()
 	s.activeWorkflows[operationID] = creationWorkflow
+	s.mu.Unlock()
 
 	// Start workflow execution in background.
 	creationWorkflow.Start(ctx)
@@ -147,7 +151,9 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 		s.operationRepo,
 	)
 
+	s.mu.Lock()
 	s.activeWorkflows[operationID] = deletionWorkflow
+	s.mu.Unlock()
 
 	// Start workflow execution in background.
 	deletionWorkflow.Start(ctx)
@@ -179,5 +185,7 @@ func (s *Service) handleWorkflowCompletion(operationID int64, workflow workflow.
 	// Wait for workflow to complete.
 	// TODO: Handle the result we get back.
 	<-workflow.ResultChan()
+	s.mu.Lock()
 	delete(s.activeWorkflows, operationID)
+	s.mu.Unlock()
 }
