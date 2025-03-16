@@ -13,6 +13,11 @@ import (
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 )
 
+// TODO: Consider if there is a way refactor the specific workflows into a more generic
+// workflow that can be used for multiple tenant operations. (ex: Create, Delete, Update, etc.)
+// We can probably have multiple constructors that can be used to create the specific workflows.
+// This would allow us to avoid duplicating code and make the workflows more maintainable.
+
 // TenantCreationWorkflow orchestrates the multi-step process of tenant provisioning.
 // It handles all aspects from initialization through resource deployment and tracks
 // the operation state for observability.

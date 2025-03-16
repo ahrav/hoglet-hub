@@ -325,12 +325,12 @@ func TestServiceCreate(t *testing.T) {
 			mockWorkflow := NewMockWorkflow()
 			mockWorkflowFactory := new(MockWorkflowFactory)
 
-			// Set workflow expectations ONLY for successful cases
+			// Set workflow expectations ONLY for successful cases.
 			if !tc.expectError {
-				// Set up the workflow to complete immediately to avoid race conditions
+				// Set up the workflow to complete immediately to avoid race conditions.
 				mockWorkflow.TestMode()
 
-				// Set up the factory to return our controlled workflow
+				// Set up the factory to return our controlled workflow.
 				mockWorkflowFactory.On("NewTenantCreationWorkflow",
 					mock.AnythingOfType("*tenant.Tenant"),
 					mock.AnythingOfType("int64"),
@@ -344,7 +344,7 @@ func TestServiceCreate(t *testing.T) {
 			logger := logger.Noop()
 			tracer := noop.NewTracerProvider().Tracer("test")
 
-			// Use the service constructor that accepts a workflow factory
+			// Use the service constructor that accepts a workflow factory.
 			svc := tenant.NewServiceWithWorkflowFactory(
 				mockTenantRepo,
 				mockOperationRepo,
@@ -452,12 +452,12 @@ func TestServiceDelete(t *testing.T) {
 			mockWorkflow := NewMockWorkflow()
 			mockWorkflowFactory := new(MockWorkflowFactory)
 
-			// Set workflow expectations ONLY for successful cases
+			// Set workflow expectations ONLY for successful cases.
 			if !tc.expectError {
-				// Set up the workflow to complete immediately to avoid race conditions
+				// Set up the workflow to complete immediately to avoid race conditions.
 				mockWorkflow.TestMode()
 
-				// Set up the factory to return our controlled workflow
+				// Set up the factory to return our controlled workflow.
 				mockWorkflowFactory.On("NewTenantDeletionWorkflow",
 					mock.AnythingOfType("*tenant.Tenant"),
 					mock.AnythingOfType("int64"),
@@ -471,7 +471,7 @@ func TestServiceDelete(t *testing.T) {
 			logger := logger.Noop()
 			tracer := noop.NewTracerProvider().Tracer("test")
 
-			// Use the service constructor that accepts a workflow factory
+			// Use the service constructor that accepts a workflow factory.
 			svc := tenant.NewServiceWithWorkflowFactory(
 				mockTenantRepo,
 				mockOperationRepo,
