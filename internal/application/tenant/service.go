@@ -59,6 +59,8 @@ type DeleteResult struct{ OperationID int64 }
 // implementation details in their own package and support multiple workflow implementations,
 // we use a workflow.Workflow interface as a return type. This is a deliberate trade-off between
 // strict adherence to Go idioms and maintaining a clean architecture with proper separation of concerns.
+// TODO: Revist this...
+// NOTE: There is probably a better way to do this, but my brain isn't working right now.
 //
 // The workflow.Workflow interface is considered an internal implementation detail
 // of the tenant service, and is never exposed directly to external API clients.
