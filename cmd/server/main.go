@@ -268,7 +268,7 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 
 	// Initialize application services.
 	operationService := operationApp.NewService(operationRepository)
-	tenantService := tenantApp.NewService(tenantRepository, operationRepository)
+	tenantService := tenantApp.NewService(tenantRepository, operationRepository, log, tracer)
 
 	// Initialize HTTP handlers.
 	tenantHandler := handler.NewTenantHandler(tenantService)

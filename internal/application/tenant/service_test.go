@@ -7,11 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"go.opentelemetry.io/otel/trace/noop"
 
 	"github.com/ahrav/hoglet-hub/internal/application/tenant"
 	"github.com/ahrav/hoglet-hub/internal/application/workflow"
 	"github.com/ahrav/hoglet-hub/internal/domain/operation"
 	tenantDomain "github.com/ahrav/hoglet-hub/internal/domain/tenant"
+	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 )
 
 // MockTenantRepo is a testify mock for tenant.Repository.
@@ -208,7 +210,9 @@ func TestServiceCreate(t *testing.T) {
 		tc.mockTenantRepoFn(mockTenantRepo)
 		tc.mockOperationRepoFn(mockOperationRepo)
 
-		svc := tenant.NewService(mockTenantRepo, mockOperationRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := tenant.NewService(mockTenantRepo, mockOperationRepo, logger, tracer)
 		res, err := svc.Create(ctx, tc.inputParams)
 
 		if tc.expectError {
@@ -305,7 +309,9 @@ func TestServiceDelete(t *testing.T) {
 		tc.mockTenantRepoFn(mockTenantRepo)
 		tc.mockOperationRepoFn(mockOperationRepo)
 
-		svc := tenant.NewService(mockTenantRepo, mockOperationRepo)
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := tenant.NewService(mockTenantRepo, mockOperationRepo, logger, tracer)
 		res, err := svc.Delete(ctx, tc.tenantID)
 		if tc.expectError {
 			assert.Error(t, err)
@@ -373,7 +379,10 @@ func TestServiceGetOperationStatus(t *testing.T) {
 		mockOperationRepo := new(MockOperationRepo)
 
 		tc.mockOperationRepoFn(mockOperationRepo)
-		svc := tenant.NewService(mockTenantRepo, mockOperationRepo)
+
+		logger := logger.Noop()
+		tracer := noop.NewTracerProvider().Tracer("test")
+		svc := tenant.NewService(mockTenantRepo, mockOperationRepo, logger, tracer)
 		op, err := svc.GetOperationStatus(ctx, tc.operationID)
 		if tc.expectError {
 			assert.Error(t, err)
