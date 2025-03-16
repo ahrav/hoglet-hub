@@ -2,6 +2,7 @@ package tenant
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/ahrav/hoglet-hub/internal/application/workflow"
@@ -56,7 +57,7 @@ func NewService(tenantRepo tenant.Repository, operationRepo operation.Repository
 // It performs validation, creates necessary domain entities, and launches an async workflow.
 func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResult, error) {
 	existingTenant, err := s.tenantRepo.FindByName(ctx, params.Name)
-	if err != nil {
+	if err != nil && !errors.Is(err, tenant.ErrTenantNotFound) {
 		return nil, fmt.Errorf("error checking existing tenant: %w", err)
 	}
 
@@ -70,7 +71,6 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 		params.Tier,
 		params.IsolationGroupID,
 	)
-
 	if err != nil {
 		return nil, err
 	}
@@ -87,7 +87,6 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 		string(params.Tier),
 		params.IsolationGroupID,
 	)
-
 	if err != nil {
 		return nil, fmt.Errorf("failed to create operation: %w", err)
 	}
@@ -114,11 +113,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 	// Set up goroutine to handle workflow completion and cleanup.
 	go s.handleWorkflowCompletion(operationID, creationWorkflow.ResultChan())
 
-	return &CreateResult{
-		TenantID:    tenantID,
-		OperationID: operationID,
-		Workflow:    creationWorkflow,
-	}, nil
+	return &CreateResult{TenantID: tenantID, OperationID: operationID, Workflow: creationWorkflow}, nil
 }
 
 // Delete initiates tenant deletion and returns operation information.
