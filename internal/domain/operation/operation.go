@@ -39,9 +39,7 @@ func (t Op) IsValid() bool {
 }
 
 // String returns the string representation of the operation type.
-func (t Op) String() string {
-	return string(t)
-}
+func (t Op) String() string { return string(t) }
 
 // ParseType converts a string to an operation type with validation.
 // Returns an error if the string does not represent a valid operation type.
@@ -68,10 +66,7 @@ func (e ValidationError) Error() string {
 
 // NewValidationError creates a new ValidationError with the given field and message.
 func NewValidationError(field, message string) ValidationError {
-	return ValidationError{
-		Field:   field,
-		Message: message,
-	}
+	return ValidationError{Field: field, Message: message}
 }
 
 // Status represents the current state of an operation.
@@ -108,7 +103,7 @@ type Operation struct {
 // This is a convenience function that sets up the appropriate parameters
 // for creating a tenant.
 func NewTenantCreateOperation(tenantID int64, name string, region, tier string, isolationGroupID *int64) (*Operation, error) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"name":   name,
 		"region": region,
 		"tier":   tier,
@@ -124,7 +119,7 @@ func NewTenantCreateOperation(tenantID int64, name string, region, tier string, 
 // NewTenantDeleteOperation creates a new tenant deletion operation.
 // It sets up the necessary parameters for deleting a tenant.
 func NewTenantDeleteOperation(tenantID int64) (*Operation, error) {
-	params := map[string]interface{}{
+	params := map[string]any{
 		"tenant_id": tenantID,
 	}
 
