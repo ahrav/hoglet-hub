@@ -61,7 +61,7 @@ func (s *operationStore) Create(ctx context.Context, op *operation.Operation) (i
 			return err
 		}
 
-		createdBy := "system"
+		createdBy := "system@hoglet-hub.com"
 		if op.CreatedBy != nil {
 			createdBy = *op.CreatedBy
 		}

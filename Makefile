@@ -34,9 +34,6 @@ CONFIG_FILE ?= config.yaml
 # Postgres connection URL
 POSTGRES_URL = postgres://postgres:postgres@localhost:5432/hoglet-hub?sslmode=disable
 
-# Define backend app path where the OpenAPI spec is located
-BACKEND_APP := api/v1
-
 ################################################################################
 # Help
 ################################################################################
@@ -46,41 +43,26 @@ BACKEND_APP := api/v1
         monitoring-port-forward monitoring-cleanup postgres-setup postgres-logs \
         postgres-restart postgres-delete sqlc-proto-gen test test-coverage \
         rollout-restart clean dev-all clean-hosts verify-nginx update-hosts \
-        test-api test-frontend open-frontend integration-test build-frontend docker-frontend \
-        update-frontend-api
+        test-api integration-test build-frontend docker-frontend \
+        build-api build-frontend docker-api docker-frontend docker-all \
+        dev-api dev-all deploy-fe-k8s fe-local-dev open-fe-local \
+        api-port-forward stop-port-forward
 
 help:
-	@echo "Usage: make [target]"
-	@echo ""
-	@echo "Targets:"
-	@echo "  build-api            Build the API"
-	@echo "  build-frontend       Build the frontend"
-	@echo "  docker-api           Build the API Docker image"
-	@echo "  docker-frontend      Build the frontend Docker image"
-	@echo "  docker-all           Build all Docker images"
-	@echo "  dev-api              Start the API services in Kubernetes"
-	@echo "  dev-frontend         Start the frontend services in Kubernetes"
-	@echo "  dev-all              Start all services in Kubernetes"
-	@echo "  update-hosts         Add hoglet-hub.local to /etc/hosts"
-	@echo "  clean-hosts          Remove hoglet-hub.local from /etc/hosts"
-	@echo "  test-api             Test API connectivity with curl"
-	@echo "  test-frontend        Test Frontend connectivity with curl"
-	@echo "  open-frontend        Open Frontend in default browser"
-	@echo "  update-frontend-api  Copy OpenAPI spec from backend to frontend"
+	@echo "Usage: make <command>"
 	@echo ""
 	@echo "Local dev setup:"
 	@echo "  dev-setup             Install brew pkgs, Go tooling, pull Docker images"
 	@echo "  dev-up                Create KinD cluster + NGINX ingress namespace"
 	@echo "  dev-load              Load your local Docker images into the cluster"
-	@echo "  dev-apply             Apply core manifests for provisioning-server"
+	@echo "  dev-apply             Apply core manifests for API services"
 	@echo "  dev-down              Delete the KinD cluster"
-	@echo "  dev-all               Full cycle: build, cluster up, load images, apply manifests"
 	@echo "  verify-nginx          Verify NGINX ingress controller is working correctly"
-	@echo "  update-hosts          Update hosts file to use localhost"
+	@echo "  api-port-forward      Port-forward the backend API to localhost:8080"
+	@echo "  stop-port-forward     Stop all port-forwarding"
+	@echo "  dev-all               Full cycle: build, cluster up, load images, apply manifests"
 	@echo "  clean-hosts           Remove DNS entries from /etc/hosts file"
 	@echo "  test-api              Test API connectivity with curl"
-	@echo "  test-frontend         Test Frontend connectivity with curl"
-	@echo "  open-frontend         Open Frontend in default browser"
 	@echo ""
 	@echo "Build & Docker:"
 	@echo "  build-all             Build all binaries (provisioning-server)"
@@ -104,6 +86,18 @@ help:
 	@echo "  rollout-restart       Restart all main deployments (provisioning-server)"
 	@echo "  test                  Run Go tests with race detection"
 	@echo "  test-coverage         Run tests and produce a coverage report"
+	@echo ""
+	@echo "Targets:"
+	@echo "  build-api            Build the API"
+	@echo "  build-frontend       Build the frontend"
+	@echo "  docker-api           Build the API Docker image"
+	@echo "  docker-frontend      Build the frontend Docker image"
+	@echo "  docker-all           Build all Docker images"
+	@echo "  dev-api              Start the API services in Kubernetes"
+	@echo "  dev-all              Start all BACKEND services in Kubernetes (no frontend)"
+	@echo "  deploy-fe-k8s        Deploy frontend to Kubernetes (for production testing)"
+	@echo "  fe-local-dev         Run frontend locally + port-forward backend API (http://localhost:4000)"
+	@echo "  open-fe-local        Open locally running frontend in browser (http://localhost:4000)"
 
 ################################################################################
 # 1) Developer Setup Targets
@@ -148,29 +142,16 @@ sqlc-proto-gen:
 build-provisioning-server:
 	CGO_ENABLED=0 GOOS=linux go build -o $(PROVISIONING_SERVER_APP) ./cmd/server
 
-build-frontend: update-frontend-api
-	@echo "Building frontend"
-	@cd $(FRONTEND_APP) && npm install
-	@echo "Generating API client"
-	@cd $(FRONTEND_APP) && npm run generate-api
-	@echo "API client generated successfully"
-	@echo "Building frontend application"
-	@cd $(FRONTEND_APP) && npm run build
-	@echo "Frontend built successfully"
+build-frontend:
+	cd $(FRONTEND_APP) && npm install && npm run generate-api
 
 docker-all: docker-provisioning-server docker-frontend
 
 docker-provisioning-server:
 	docker build -t $(PROVISIONING_SERVER_IMAGE) -f Dockerfile.provisioning-server .
 
-docker-frontend: update-frontend-api
-	@echo "Building frontend Docker image"
-	@cd $(FRONTEND_APP) && npm install
-	@echo "Generating API client before Docker build"
-	@cd $(FRONTEND_APP) && npm run generate-api
-	@echo "Building Docker image for frontend"
-	@docker build -t $(FRONTEND_IMAGE) $(FRONTEND_APP)
-	@echo "Frontend Docker image built successfully: $(FRONTEND_IMAGE)"
+docker-frontend:
+	docker build -t $(FRONTEND_IMAGE) -f $(FRONTEND_APP)/Dockerfile ./$(FRONTEND_APP)
 
 ################################################################################
 # 3) Kind cluster management
@@ -221,9 +202,14 @@ dev-up:
 
 	@echo "NGINX controller is ready. Proceeding with the setup..."
 
+dev-server-up: build-provisioning-server
+	kind load docker-image $(PROVISIONING_SERVER_IMAGE) --name $(KIND_CLUSTER)
+	kustomize build $(K8S_MANIFESTS)/dev/provisioning | kubectl apply -f - -n $(NAMESPACE)
+	kubectl rollout restart deployment/provisioning-server -n $(NAMESPACE)
+	@echo "Provisioning server is ready. Proceeding with the setup..."
+
 dev-load: docker-all
 	kind load docker-image $(PROVISIONING_SERVER_IMAGE) --name $(KIND_CLUSTER)
-	kind load docker-image $(FRONTEND_IMAGE) --name $(KIND_CLUSTER)
 	kind load docker-image $(POSTGRES_IMAGE) --name $(KIND_CLUSTER)
 	kind load docker-image $(PROMETHEUS_IMAGE) --name $(KIND_CLUSTER)
 	kind load docker-image $(GRAFANA_IMAGE) --name $(KIND_CLUSTER)
@@ -238,7 +224,6 @@ dev-apply:
 	kustomize build $(K8S_MANIFESTS)/dev/database | kubectl apply -f - -n $(NAMESPACE)
 	kustomize build $(K8S_MANIFESTS)/dev/auth | kubectl apply -f - -n $(NAMESPACE)
 	kustomize build $(K8S_MANIFESTS)/dev/provisioning | kubectl apply -f - -n $(NAMESPACE)
-	kustomize build $(K8S_MANIFESTS)/dev/frontend | kubectl apply -f - -n $(NAMESPACE)
 	kustomize build $(K8S_MANIFESTS)/dev/grafana | kubectl apply -f - -n $(NAMESPACE)
 	kustomize build $(K8S_MANIFESTS)/dev/prometheus | kubectl apply -f - -n $(NAMESPACE)
 	kustomize build $(K8S_MANIFESTS)/dev/tempo | kubectl apply -f - -n $(NAMESPACE)
@@ -258,8 +243,6 @@ dev-apply:
 	kubectl wait --for=condition=ready pod -l app=tempo --timeout=120s -n $(NAMESPACE) || true
 	@echo "Checking Loki status..."
 	kubectl wait --for=condition=ready pod -l app=loki --timeout=120s -n $(NAMESPACE) || true
-	@echo "Checking Frontend status..."
-	kubectl wait --for=condition=ready pod -l app=frontend --timeout=120s -n $(NAMESPACE) || true
 	@echo "Verifying Tempo connectivity..."
 	kubectl run -n $(NAMESPACE) tempo-test --rm -i --restart=Never --image=busybox -- nc -zvw 1 dev-tempo 4317 || true
 
@@ -272,21 +255,25 @@ dev-down:
 # A single shortcut target that sets up everything for a new dev
 dev-all: build-all docker-all dev-up dev-load dev-apply
 	@echo "=========================================================="
-	@echo "Development environment setup complete!"
+	@echo "Backend development environment setup complete!"
 	@echo "=========================================================="
-	@echo "Access your applications at:"
-	@echo "  - Frontend: http://hoglet-hub.local"
-	@echo "  - API: http://api.hoglet-hub.local/api/v1"
+	@echo "To start the frontend locally for development, run:"
+	@echo "  make fe-local-dev"
 	@echo ""
-	@echo "To view services with port-forwarding:"
-	@echo "  - Frontend: make frontend-port-forward (then visit http://localhost:8000)"
-	@echo "  - API: make provisioning-server-port-forward (then use http://localhost:8080/api/v1)"
+	@echo "To deploy the frontend to Kubernetes (for prod testing), run:"
+	@echo "  make deploy-fe-k8s"
+	@echo ""
+	@echo "To view backend services:"
+	@echo "  - API: make api-port-forward (then use http://localhost:8080/api/v1)"
 	@echo "  - Grafana: make monitoring-port-forward (then visit http://localhost:3000)"
+	@echo ""
+	@echo "Port allocation:"
+	@echo "  - Frontend: 4000"
+	@echo "  - API: 8080"
+	@echo "  - Grafana: 3000"
 	@echo ""
 	@echo "Useful commands:"
 	@echo "  - View all pods: make dev-status"
-	@echo "  - View frontend logs: make logs-frontend"
-	@echo "  - Restart frontend: make rollout-restart-frontend"
 	@echo "  - Test the API: make test-api"
 	@echo "=========================================================="
 
@@ -345,8 +332,8 @@ provisioning-server-port-forward:
 	kubectl port-forward -n $(NAMESPACE) svc/provisioning-server-svc 8080:80 &
 
 frontend-port-forward:
-	@echo "Port forwarding Frontend to localhost:8000..."
-	kubectl port-forward -n $(NAMESPACE) svc/frontend-svc 8000:8080 &
+	@echo "Port forwarding Frontend to localhost:4000..."
+	kubectl port-forward -n $(NAMESPACE) svc/frontend-svc 4000:4000 &
 
 ################################################################################
 # Rollout restarts
@@ -449,34 +436,48 @@ test-api:
 	@echo "Testing API endpoint with curl..."
 	curl -v http://api.hoglet-hub.local/api/v1 || echo "Failed to connect. Try recreating your cluster with 'make dev-down' followed by 'make dev-all'"
 
-# Test the frontend endpoint
-test-frontend:
-	@echo "Testing Frontend endpoint with curl..."
-	curl -v http://hoglet-hub.local || echo "Failed to connect. Try recreating your cluster with 'make dev-down' followed by 'make dev-all'"
-
-# Open the frontend in the default browser
-open-frontend:
-	@echo "Opening Frontend in default browser..."
-	open http://hoglet-hub.local
-
 integration-test:
 	go test -tags=integration ./internal/test/integration/... -v
 
 integration-test-short:
 	go test -tags=integration ./internal/test/integration/... -v -short
 
-update-frontend-api: ## Copy OpenAPI specification from backend to frontend
-	@echo "Copying OpenAPI specification from backend to frontend"
-	@mkdir -p $(FRONTEND_APP)/src/api
-	@if [ -f $(BACKEND_APP)/openapi.yaml ]; then \
-		cp $(BACKEND_APP)/openapi.yaml $(FRONTEND_APP)/src/api/openapi.yaml && \
-		echo "OpenAPI specification copied successfully" && \
-		ls -la $(FRONTEND_APP)/src/api/openapi.yaml; \
-	elif [ -f openapi.yaml ]; then \
-		cp openapi.yaml $(FRONTEND_APP)/src/api/openapi.yaml && \
-		echo "OpenAPI specification copied from root directory" && \
-		ls -la $(FRONTEND_APP)/src/api/openapi.yaml; \
-	else \
-		echo "ERROR: openapi.yaml not found in $(BACKEND_APP) or root directory"; \
-		exit 1; \
-	fi
+fe-local-dev: api-port-forward
+	@echo "====================== FRONTEND DEVELOPMENT ======================"
+	@echo "Starting frontend locally while connecting to the backend API..."
+	@echo ""
+	@echo "🌐 BROWSER ACCESS:"
+	@echo "  ➡️ Frontend: http://localhost:4000  (YOUR APP WILL BE HERE)"
+	@echo ""
+	@echo "ℹ️ API CONNECTIVITY:"
+	@echo "  ➡️ Backend API: http://localhost:8080/api/v1"
+	@echo "  (This is for API calls only - don't need to open this URL in your browser)"
+	@echo ""
+	@echo "ℹ️ PORT CONSISTENCY:"
+	@echo "  ✅ Frontend always runs on port 4000 (local dev and Kubernetes)"
+	@echo "  ✅ API always runs on port 8080"
+	@echo ""
+	@echo "ℹ️ STOPPING:"
+	@echo "  To stop both the frontend and port-forwarding: Ctrl+C and run 'make stop-port-forward'"
+	@echo "================================================================="
+	cd $(FRONTEND_APP) && \
+	NEXT_PUBLIC_API_URL=http://localhost:8080 npm run dev -- -p 4000
+
+# Add a target to directly open the frontend in the browser
+open-fe-local:
+	@echo "Opening local frontend in the default browser..."
+	open http://localhost:4000
+
+# Port forward the API service to localhost
+api-port-forward:
+	@echo "Port forwarding API to localhost:8080..."
+	kubectl port-forward -n $(NAMESPACE) svc/provisioning-server-svc 8080:80 > /tmp/api-port-forward.log 2>&1 &
+	@echo "API port forwarding started with PID: $$!"
+	@echo "API is available at http://localhost:8080/api/v1"
+	@echo "You can check port forwarding logs at /tmp/api-port-forward.log"
+	@echo "To stop port forwarding, run: make stop-port-forward"
+
+stop-port-forward:
+	@echo "Stopping all port-forwarding processes..."
+	killall kubectl
+	@echo "All port-forwarding processes stopped."

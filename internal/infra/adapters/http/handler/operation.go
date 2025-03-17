@@ -75,9 +75,10 @@ func (h *OperationHandler) GetOperation(ctx context.Context, req server.GetOpera
 
 	opType := op.Type.String()
 
-	var createdBy openapi_types.Email
+	var createdBy *openapi_types.Email
 	if op.CreatedBy != nil {
-		createdBy = openapi_types.Email(*op.CreatedBy)
+		email := openapi_types.Email(*op.CreatedBy)
+		createdBy = &email
 	}
 
 	return server.GetOperation200JSONResponse{
@@ -93,6 +94,6 @@ func (h *OperationHandler) GetOperation(ctx context.Context, req server.GetOpera
 		ErrorMessage:  op.ErrorMessage,
 		Parameters:    &op.Parameters,
 		Result:        &op.Result,
-		CreatedBy:     &createdBy,
+		CreatedBy:     createdBy,
 	}, nil
 }

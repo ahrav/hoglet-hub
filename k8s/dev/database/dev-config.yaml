@@ -10,3 +10,4 @@ data:
   POSTGRES_USER: "postgres"
   OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.hoglet-hub.svc.cluster.local:4317"
   OTEL_SAMPLING_RATIO: "0.8"
+  WEB_CORSALLOWEDORIGINS: "http://localhost:4000,http://hoglet-hub.local"

@@ -19,13 +19,13 @@ spec:
         image: hoglet-hub-frontend:latest
         imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 8080
+        - containerPort: 4000
           name: http
         env:
         - name: NODE_ENV
           value: "production"
         - name: NEXT_PUBLIC_API_URL
-          value: "http://api.hoglet-hub.local/api/v1"
+          value: "http://api.hoglet-hub.local"
         resources:
           limits:
             cpu: "500m"
@@ -36,12 +36,12 @@ spec:
         readinessProbe:
           httpGet:
             path: /
-            port: 8080
+            port: 4000
           initialDelaySeconds: 10
           periodSeconds: 5
         livenessProbe:
           httpGet:
             path: /
-            port: 8080
+            port: 4000
           initialDelaySeconds: 15
           periodSeconds: 10
