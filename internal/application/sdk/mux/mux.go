@@ -185,29 +185,28 @@ func WrapWithMiddleware(cfg Config, handler http.Handler, options ...func(opts *
 		})
 	}
 
-	// Create a new mux to attach health endpoints and then forward other requests
-	// to the wrapped handler.
-	mux := http.NewServeMux()
+	// Apply the middleware chain to the original handler.
+	wrappedHandler := handler
+	for _, middleware := range chain {
+		wrappedHandler = middleware(wrappedHandler)
+	}
 
-	// Register health check endpoints.
+	// Create a mux to integrate health endpoints with the middleware-wrapped handler.
+	finalMux := http.NewServeMux()
+
+	// Register health check endpoints directly on the mux WITHOUT middleware.
 	healthHandler := NewHealthHandler(cfg.DB)
-	mux.HandleFunc("/api/v1/health/liveness", healthHandler.Liveness())
-	mux.HandleFunc("/api/v1/health/readiness", healthHandler.Readiness())
+	finalMux.HandleFunc("/api/v1/health/liveness", healthHandler.Liveness())
+	finalMux.HandleFunc("/api/v1/health/readiness", healthHandler.Readiness())
 
-	// Forward all other requests to the original handler.
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Skip health endpoints to prevent double handling.
+	// Register the middleware-wrapped handler for all other paths.
+	finalMux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Skip health endpoints to prevent double handling
 		if r.URL.Path == "/api/v1/health/liveness" || r.URL.Path == "/api/v1/health/readiness" {
 			return
 		}
-		handler.ServeHTTP(w, r)
+		wrappedHandler.ServeHTTP(w, r)
 	})
 
-	// Apply the middleware chain to the mux with health endpoints.
-	wrapped := http.Handler(mux)
-	for _, middleware := range chain {
-		wrapped = middleware(wrapped)
-	}
-
-	return wrapped
+	return finalMux
 }

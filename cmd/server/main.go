@@ -142,7 +142,7 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 	// Default Tempo configuration
 	cfg.Tempo.Host = "tempo:4317"
 	cfg.Tempo.ServiceName = serviceType
-	cfg.Tempo.Probability = 0.05
+	cfg.Tempo.Probability = 0.8
 
 	// Override with environment variables if provided
 	if port := os.Getenv("API_PORT"); port != "" {

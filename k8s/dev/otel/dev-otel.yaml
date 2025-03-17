@@ -60,7 +60,7 @@ data:
         const_labels:
           deployment: "production"
       otlp:
-        endpoint: "tempo:4317"
+        endpoint: "dev-tempo:4317"
         tls:
           insecure: true
       debug:

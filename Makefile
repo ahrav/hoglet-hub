@@ -35,11 +35,11 @@ POSTGRES_URL = postgres://postgres:postgres@localhost:5432/hoglet-hub?sslmode=di
 ################################################################################
 
 .PHONY: help dev-setup dev-brew dev-gotooling dev-docker build-all docker-all \
-        dev-up dev-load dev-apply dev-status dev-down dev-apply-extras \
+        dev-up dev-load dev-apply dev-status dev-down \
         monitoring-port-forward monitoring-cleanup postgres-setup postgres-logs \
         postgres-restart postgres-delete sqlc-proto-gen test test-coverage \
         rollout-restart clean dev-all clean-hosts verify-nginx update-hosts \
-        test-api integration-test integration-test-docker integration-test-setup
+        test-api integration-test
 
 help:
 	@echo "Usage: make <command>"
@@ -48,8 +48,7 @@ help:
 	@echo "  dev-setup             Install brew pkgs, Go tooling, pull Docker images"
 	@echo "  dev-up                Create KinD cluster + NGINX ingress namespace"
 	@echo "  dev-load              Load your local Docker images into the cluster"
-	@echo "  dev-apply             Apply core manifests for controller/scanner/gateway"
-	@echo "  dev-apply-extras      Apply Kafka, Postgres, monitoring, etc."
+	@echo "  dev-apply             Apply core manifests for provisioning-server"
 	@echo "  dev-down              Delete the KinD cluster"
 	@echo "  dev-all               Full cycle: build, cluster up, load images, apply manifests"
 	@echo "  verify-nginx          Verify NGINX ingress controller is working correctly"
@@ -88,8 +87,8 @@ dev-brew:
 	brew update
 	brew list kind || brew install kind
 	brew list kubectl || brew install kubectl
-	# brew list kustomize || brew install kustomize
-	# brew list watch || brew install watch
+	brew list kustomize || brew install kustomize
+	brew list watch || brew install watch
 	@echo "Brew-based tooling installed or already present."
 
 dev-gotooling:
@@ -131,7 +130,7 @@ docker-provisioning-server:
 ################################################################################
 
 dev-up:
-	kind create cluster --name $(KIND_CLUSTER) --config $(K8S_MANIFESTS)/kind-config.yaml
+	kind create cluster --name $(KIND_CLUSTER) --config $(K8S_MANIFESTS)/dev/kind-config.yaml
 	kubectl create namespace $(NAMESPACE)
 	kubectl config set-context --current --namespace=$(NAMESPACE)
 
@@ -178,35 +177,32 @@ dev-load: dev-docker
 	kind load docker-image $(OTEL_COLLECTOR_IMAGE) --name $(KIND_CLUSTER)
 
 dev-apply:
-	kubectl apply -f $(K8S_MANIFESTS)/namespace.yaml
-	kubectl apply -f $(K8S_MANIFESTS)/config.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/rbac.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/provisioning-server.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/provisioning-http-ingress.yaml -n $(NAMESPACE)
-
-dev-apply-extras:
-	# Deploy Postgres
-	kubectl apply -f $(K8S_MANIFESTS)/postgres.yaml -n $(NAMESPACE)
-	# Deploy monitoring stack
-	kubectl apply -f $(K8S_MANIFESTS)/otel.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/prometheus.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/tempo.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/grafana.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/grafana-dashboards.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/grafana-dashboards-provisioning.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/loki.yaml -n $(NAMESPACE)
-	kubectl apply -f $(K8S_MANIFESTS)/promtail.yaml -n $(NAMESPACE)
-
-	@echo "Waiting for Postgres, monitoring pods to be ready..."
+	@echo "Applying Kubernetes resources..."
+	# Apply components individually
+	kustomize build $(K8S_MANIFESTS)/dev/database | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/auth | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/provisioning | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/grafana | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/prometheus | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/tempo | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/loki | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/promtail | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/otel | kubectl apply -f - -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/ingress | kubectl apply -f - -n $(NAMESPACE)
+	@echo "Waiting for pods to be ready..."
 	sleep 10
+	@echo "Checking Postgres status..."
 	kubectl wait --for=condition=ready pod -l app=postgres --timeout=180s -n $(NAMESPACE) || true
+	@echo "Checking Prometheus status..."
 	kubectl wait --for=condition=ready pod -l app=prometheus --timeout=120s -n $(NAMESPACE) || true
+	@echo "Checking Grafana status..."
 	kubectl wait --for=condition=ready pod -l app=grafana --timeout=120s -n $(NAMESPACE) || true
+	@echo "Checking Tempo status..."
 	kubectl wait --for=condition=ready pod -l app=tempo --timeout=120s -n $(NAMESPACE) || true
+	@echo "Checking Loki status..."
 	kubectl wait --for=condition=ready pod -l app=loki --timeout=120s -n $(NAMESPACE) || true
 	@echo "Verifying Tempo connectivity..."
-	kubectl run -n $(NAMESPACE) tempo-test --rm -i --restart=Never --image=busybox -- nc -zvw 1 tempo 4317 || true
-
+	kubectl run -n $(NAMESPACE) tempo-test --rm -i --restart=Never --image=busybox -- nc -zvw 1 dev-tempo 4317 || true
 
 dev-status:
 	kubectl get pods -n $(NAMESPACE) -o wide
@@ -215,7 +211,7 @@ dev-down:
 	kind delete cluster --name $(KIND_CLUSTER)
 
 # A single shortcut target that sets up everything for a new dev
-dev-all: build-all docker-all dev-up dev-load dev-apply-extras postgres-setup dev-apply
+dev-all: build-all docker-all dev-up dev-load dev-apply
 
 ################################################################################
 # 4) Postgres Targets
@@ -225,7 +221,7 @@ postgres-setup:
 	@echo "Deploying PostgreSQL..."
 	docker pull $(POSTGRES_IMAGE)
 	kind load docker-image $(POSTGRES_IMAGE) --name $(KIND_CLUSTER)
-	kubectl apply -f $(K8S_MANIFESTS)/postgres.yaml -n $(NAMESPACE)
+	kustomize build $(K8S_MANIFESTS)/dev/database | kubectl apply -f - -n $(NAMESPACE)
 	@echo "Waiting for PostgreSQL to be ready..."
 	sleep 5
 	kubectl wait --for=condition=ready pod -l app=postgres --timeout=180s -n $(NAMESPACE) || true
@@ -234,7 +230,7 @@ postgres-logs:
 	kubectl logs -l app=postgres -n $(NAMESPACE) --tail=100 -f
 
 postgres-delete:
-	kubectl delete -f $(K8S_MANIFESTS)/postgres.yaml -n $(NAMESPACE) || true
+	kustomize build $(K8S_MANIFESTS)/dev/database | kubectl delete -f - -n $(NAMESPACE) || true
 
 postgres-restart: postgres-delete postgres-setup
 
@@ -245,19 +241,17 @@ postgres-restart: postgres-delete postgres-setup
 monitoring-port-forward:
 	@echo "Access Grafana at http://localhost:3000 (user: admin / pass: admin)"
 	@echo "Access Prometheus at http://localhost:9090 (if needed for direct queries)"
-	kubectl port-forward -n $(NAMESPACE) svc/grafana 3000:3000 &
-	kubectl port-forward -n $(NAMESPACE) svc/prometheus 9090:9090 &
+	kubectl port-forward -n $(NAMESPACE) svc/dev-grafana 3000:3000 &
+	kubectl port-forward -n $(NAMESPACE) svc/dev-prometheus 9090:9090 &
 	@echo "You can view traces and logs through the Grafana dashboards"
 
 monitoring-cleanup:
-	kubectl delete -f $(K8S_MANIFESTS)/otel.yaml -n $(NAMESPACE) || true
-	kubectl delete -f $(K8S_MANIFESTS)/prometheus.yaml -n $(NAMESPACE) || true
-	kubectl delete -f $(K8S_MANIFESTS)/tempo.yaml -n $(NAMESPACE) || true
-	kubectl delete -f $(K8S_MANIFESTS)/grafana.yaml -n $(NAMESPACE) || true
-	kubectl delete -f $(K8S_MANIFESTS)/grafana-dashboards.yaml -n $(NAMESPACE) || true
-	kubectl delete -f $(K8S_MANIFESTS)/grafana-dashboards-provisioning.yaml -n $(NAMESPACE) || true
-	kubectl delete -f $(K8S_MANIFESTS)/loki.yaml -n $(NAMESPACE) || true
-	kubectl delete -f $(K8S_MANIFESTS)/promtail.yaml -n $(NAMESPACE) || true
+	kustomize build $(K8S_MANIFESTS)/dev/otel | kubectl delete -f - -n $(NAMESPACE) || true
+	kustomize build $(K8S_MANIFESTS)/dev/prometheus | kubectl delete -f - -n $(NAMESPACE) || true
+	kustomize build $(K8S_MANIFESTS)/dev/tempo | kubectl delete -f - -n $(NAMESPACE) || true
+	kustomize build $(K8S_MANIFESTS)/dev/grafana | kubectl delete -f - -n $(NAMESPACE) || true
+	kustomize build $(K8S_MANIFESTS)/dev/loki | kubectl delete -f - -n $(NAMESPACE) || true
+	kustomize build $(K8S_MANIFESTS)/dev/promtail | kubectl delete -f - -n $(NAMESPACE) || true
 
 ################################################################################
 # Logs and misc
