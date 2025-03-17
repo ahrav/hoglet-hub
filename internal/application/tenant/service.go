@@ -304,7 +304,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 	// and enables progress tracking through the operations API.
 	// Create a background context for the async workflow to prevent it from
 	// being canceled when the original request completes.
-	backgroundCtx := context.Background()
+	backgroundCtx := trace.ContextWithSpan(context.Background(), span)
 	creationWorkflow.Start(backgroundCtx)
 	span.AddEvent("async create workflow started")
 
@@ -386,7 +386,7 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 	// the operations API.
 	// Create a background context for the async workflow to prevent it from
 	// being canceled when the original request completes.
-	backgroundCtx := context.Background()
+	backgroundCtx := trace.ContextWithSpan(context.Background(), span)
 	deletionWorkflow.Start(backgroundCtx)
 
 	// Set up goroutine to handle workflow completion and cleanup.
