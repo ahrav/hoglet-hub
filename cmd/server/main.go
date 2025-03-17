@@ -175,8 +175,8 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 
 	// Configure and initialize OpenTelemetry
 	traceProvider, teardown, err := otel.InitTelemetry(log, otel.Config{
-		ServiceName:      cfg.Tempo.ServiceName,
-		ExporterEndpoint: cfg.Tempo.Host,
+		ServiceName:      os.Getenv("OTEL_SERVICE_NAME"),
+		ExporterEndpoint: os.Getenv("OTEL_EXPORTER_OTLP_ENDPOINT"),
 		ExcludedRoutes: map[string]struct{}{
 			"/api/v1/health/readiness": {},
 			"/api/v1/health/liveness":  {},
