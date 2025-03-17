@@ -169,13 +169,13 @@ type CreateTenantJSONRequestBody = TenantCreate
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// Get operation details
-	// (GET /operations/{operation_id})
+	// (GET /api/v1/operations/{operation_id})
 	GetOperation(w http.ResponseWriter, r *http.Request, operationId int64)
 	// Create a new tenant
-	// (POST /tenants)
+	// (POST /api/v1/tenants)
 	CreateTenant(w http.ResponseWriter, r *http.Request)
 	// Delete tenant
-	// (DELETE /tenants/{tenant_id})
+	// (DELETE /api/v1/tenants/{tenant_id})
 	DeleteTenant(w http.ResponseWriter, r *http.Request, tenantId int64)
 }
 
@@ -390,9 +390,9 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc("GET "+options.BaseURL+"/operations/{operation_id}", wrapper.GetOperation)
-	m.HandleFunc("POST "+options.BaseURL+"/tenants", wrapper.CreateTenant)
-	m.HandleFunc("DELETE "+options.BaseURL+"/tenants/{tenant_id}", wrapper.DeleteTenant)
+	m.HandleFunc("GET "+options.BaseURL+"/api/v1/operations/{operation_id}", wrapper.GetOperation)
+	m.HandleFunc("POST "+options.BaseURL+"/api/v1/tenants", wrapper.CreateTenant)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/v1/tenants/{tenant_id}", wrapper.DeleteTenant)
 
 	return m
 }
@@ -558,13 +558,13 @@ func (response DeleteTenant500JSONResponse) VisitDeleteTenantResponse(w http.Res
 // StrictServerInterface represents all server handlers.
 type StrictServerInterface interface {
 	// Get operation details
-	// (GET /operations/{operation_id})
+	// (GET /api/v1/operations/{operation_id})
 	GetOperation(ctx context.Context, request GetOperationRequestObject) (GetOperationResponseObject, error)
 	// Create a new tenant
-	// (POST /tenants)
+	// (POST /api/v1/tenants)
 	CreateTenant(ctx context.Context, request CreateTenantRequestObject) (CreateTenantResponseObject, error)
 	// Delete tenant
-	// (DELETE /tenants/{tenant_id})
+	// (DELETE /api/v1/tenants/{tenant_id})
 	DeleteTenant(ctx context.Context, request DeleteTenantRequestObject) (DeleteTenantResponseObject, error)
 }
 
