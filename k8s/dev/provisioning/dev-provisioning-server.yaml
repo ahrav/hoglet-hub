@@ -45,16 +45,19 @@ spec:
         - name: POSTGRES_USER
           valueFrom:
             configMapKeyRef:
-              name: postgres-config
+              name: hoglet-config
               key: POSTGRES_USER
         - name: POSTGRES_PASSWORD
           value: postgres
         - name: POSTGRES_HOST
-          value: postgres
+          valueFrom:
+            configMapKeyRef:
+              name: hoglet-config
+              key: POSTGRES_HOST
         - name: POSTGRES_DB
           valueFrom:
             configMapKeyRef:
-              name: postgres-config
+              name: hoglet-config
               key: POSTGRES_DB
         # OpenTelemetry Configuration
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
@@ -109,7 +112,13 @@ spec:
       initContainers:
       - name: wait-for-postgres
         image: busybox:1.28
-        command: ['sh', '-c', 'until nc -z postgres 5432; do echo waiting for postgres; sleep 2; done;']
+        command: ['sh', '-c', 'until nc -z $(POSTGRES_HOST) 5432; do echo waiting for postgres; sleep 2; done;']
+        env:
+        - name: POSTGRES_HOST
+          valueFrom:
+            configMapKeyRef:
+              name: hoglet-config
+              key: POSTGRES_HOST
       - name: wait-for-otel
         image: busybox:1.28
         command: ['sh', '-c', 'until nc -z otel-collector 4317; do echo "waiting for otel-collector"; sleep 2; done;']

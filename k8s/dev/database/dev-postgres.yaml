@@ -16,8 +16,7 @@ metadata:
   name: postgres-config
   namespace: hoglet-hub
 data:
-  POSTGRES_DB: hoglet-hub
-  POSTGRES_USER: postgres
+  # PostgreSQL-specific configuration only
   pg_hba.conf: |
     local   all             all                                     trust
     host    all             all             0.0.0.0/0               trust
@@ -58,7 +57,7 @@ spec:
           name: postgres
         envFrom:
         - configMapRef:
-            name: postgres-config
+            name: hoglet-config
         env:
         - name: POSTGRES_PASSWORD
           value: postgres  # In production, use a secret

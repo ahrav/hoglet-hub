@@ -4,9 +4,9 @@ metadata:
   name: hoglet-config
   namespace: hoglet-hub
 data:
-  POSTGRES_HOST: "dev-postgres"
+  POSTGRES_HOST: "postgres"
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "hoglet-hub"
   POSTGRES_USER: "postgres"
   OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.hoglet-hub.svc.cluster.local:4317"
-  OTEL_SAMPLING_RATIO: "0.7"
+  OTEL_SAMPLING_RATIO: "0.8"

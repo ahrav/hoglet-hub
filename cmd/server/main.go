@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"runtime"
 	"strconv"
-	"strings"
 	"syscall"
 	"time"
 
@@ -113,65 +112,30 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 	// Configuration
 	cfg := struct {
 		Web struct {
-			ReadTimeout        time.Duration
-			WriteTimeout       time.Duration
-			IdleTimeout        time.Duration
-			ShutdownTimeout    time.Duration
-			APIHost            string
-			APIPort            string
-			DebugHost          string
-			CORSAllowedOrigins []string
+			ReadTimeout        time.Duration `conf:"default:5s"`
+			WriteTimeout       time.Duration `conf:"default:10s"`
+			IdleTimeout        time.Duration `conf:"default:120s"`
+			ShutdownTimeout    time.Duration `conf:"default:20s"`
+			APIHost            string        `conf:"default:0.0.0.0"`
+			APIPort            string        `conf:"default:6000"`
+			DebugHost          string        `conf:"default:0.0.0.0:6010"`
+			CORSAllowedOrigins []string      `conf:"default:*"`
 		}
 		Tempo struct {
-			Host        string
-			ServiceName string
-			Probability float64
+			Host        string  `conf:"default:tempo:4317"`
+			ServiceName string  `conf:"default:client-api"`
+			Probability float64 `conf:"default:0.05"`
 		}
 	}{}
-
-	// Set default configuration values
-	cfg.Web.ReadTimeout = 5 * time.Second
-	cfg.Web.WriteTimeout = 10 * time.Second
-	cfg.Web.IdleTimeout = 120 * time.Second
-	cfg.Web.ShutdownTimeout = 20 * time.Second
-	cfg.Web.APIHost = "0.0.0.0"
-	cfg.Web.APIPort = "8080"
-	cfg.Web.DebugHost = "0.0.0.0:8090"         // Always include port for debug host
-	cfg.Web.CORSAllowedOrigins = []string{"*"} // All origins by default
-
-	// Default Tempo configuration
-	cfg.Tempo.Host = "tempo:4317"
-	cfg.Tempo.ServiceName = serviceType
-	cfg.Tempo.Probability = 0.8
-
-	// Override with environment variables if provided
-	if port := os.Getenv("API_PORT"); port != "" {
-		cfg.Web.APIPort = port
-	}
-	if host := os.Getenv("API_HOST"); host != "" {
-		cfg.Web.APIHost = host
-	}
-	if debugHost := os.Getenv("DEBUG_HOST"); debugHost != "" {
-		if !strings.Contains(debugHost, ":") {
-			debugHost = debugHost + ":8090"
-		}
-		cfg.Web.DebugHost = debugHost
-	}
-	if tempoHost := os.Getenv("TEMPO_HOST"); tempoHost != "" {
-		cfg.Tempo.Host = tempoHost
-	}
-	if tempoServiceName := os.Getenv("TEMPO_SERVICE_NAME"); tempoServiceName != "" {
-		cfg.Tempo.ServiceName = tempoServiceName
-	}
-	if tempoProbStr := os.Getenv("TEMPO_SAMPLING_PROBABILITY"); tempoProbStr != "" {
-		if prob, err := strconv.ParseFloat(tempoProbStr, 64); err == nil {
-			cfg.Tempo.Probability = prob
-		}
-	}
 
 	// -------------------------------------------------------------------------
 	// Start Tracing Support
 	log.Info(ctx, "startup", "status", "initializing tracing support")
+
+	prob, err := strconv.ParseFloat(os.Getenv("OTEL_SAMPLING_RATIO"), 64)
+	if err != nil {
+		return fmt.Errorf("parsing sampling ratio: %w", err)
+	}
 
 	// Configure and initialize OpenTelemetry
 	traceProvider, teardown, err := otel.InitTelemetry(log, otel.Config{
@@ -184,7 +148,7 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 			"/debug/vars":              {},
 			"/healthz":                 {},
 		},
-		Probability: cfg.Tempo.Probability,
+		Probability: prob,
 		ResourceAttributes: map[string]string{
 			"library.language": "go",
 			"k8s.pod.name":     os.Getenv("POD_NAME"),
@@ -200,7 +164,7 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 	defer teardown(ctx)
 
 	// Get the tracer from the provider
-	tracer := traceProvider.Tracer(cfg.Tempo.ServiceName)
+	tracer := traceProvider.Tracer(os.Getenv("OTEL_SERVICE_NAME"))
 
 	// -------------------------------------------------------------------------
 	// Database Configuration
@@ -252,9 +216,14 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 	// -------------------------------------------------------------------------
 	// Start Debug Service
 	go func() {
-		log.Info(ctx, "startup", "status", "debug router started", "host", cfg.Web.DebugHost)
-		if err := http.ListenAndServe(cfg.Web.DebugHost, debug.Mux()); err != nil {
-			log.Error(ctx, "shutdown", "status", "debug router closed", "host", cfg.Web.DebugHost, "msg", err)
+		debugHost := fmt.Sprintf("%s:%s",
+			os.Getenv("DEBUG_HOST"),
+			os.Getenv("DEBUG_PORT"),
+		)
+		log.Info(ctx, "startup", "status", "debug router started", "host", debugHost)
+
+		if err := http.ListenAndServe(debugHost, debug.Mux()); err != nil {
+			log.Error(ctx, "shutdown", "status", "debug router closed", "host", debugHost, "msg", err)
 		}
 	}()
 
@@ -306,7 +275,7 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 	)
 
 	// Configure and start the API server.
-	apiAddr := fmt.Sprintf("%s:%s", cfg.Web.APIHost, cfg.Web.APIPort)
+	apiAddr := fmt.Sprintf("%s:%s", os.Getenv("API_HOST"), os.Getenv("API_PORT"))
 	api := http.Server{
 		Addr:         apiAddr,
 		Handler:      webAPI,
