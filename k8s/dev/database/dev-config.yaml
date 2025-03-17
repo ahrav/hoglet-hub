@@ -8,5 +8,5 @@ data:
   POSTGRES_PORT: "5432"
   POSTGRES_DB: "hoglet-hub"
   POSTGRES_USER: "postgres"
-  OTEL_EXPORTER_OTLP_ENDPOINT: "dev-otel-collector.hoglet-hub.svc.cluster.local:4317"
+  OTEL_EXPORTER_OTLP_ENDPOINT: "otel-collector.hoglet-hub.svc.cluster.local:4317"
   OTEL_SAMPLING_RATIO: "0.7"
