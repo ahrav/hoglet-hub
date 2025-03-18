@@ -1,8 +1,6 @@
 package mux
 
 import (
-	"context"
-	"embed"
 	"net/http"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -12,39 +10,17 @@ import (
 	"github.com/ahrav/hoglet-hub/internal/application/sdk/mid"
 	tenantApp "github.com/ahrav/hoglet-hub/internal/application/tenant"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
-	"github.com/ahrav/hoglet-hub/pkg/web"
 )
-
-// StaticSite represents a static site to run.
-type StaticSite struct {
-	react      bool
-	static     embed.FS
-	staticDir  string
-	staticPath string
-}
 
 // Options represent optional parameters.
 type Options struct {
 	corsOrigin []string
-	sites      []StaticSite
 }
 
 // WithCORS provides configuration options for CORS.
 func WithCORS(origins []string) func(opts *Options) {
 	return func(opts *Options) {
 		opts.corsOrigin = origins
-	}
-}
-
-// WithFileServer provides configuration options for file server.
-func WithFileServer(react bool, static embed.FS, dir string, path string) func(opts *Options) {
-	return func(opts *Options) {
-		opts.sites = append(opts.sites, StaticSite{
-			react:      react,
-			static:     static,
-			staticDir:  dir,
-			staticPath: path,
-		})
 	}
 }
 
@@ -59,23 +35,15 @@ type Config struct {
 	OperationService *operationApp.Service
 }
 
-// RouteAdder defines behavior that sets the routes to bind for an instance
-// of the service.
-type RouteAdder interface {
-	Add(app *web.App, cfg Config)
-}
+// healthHandler provides health check endpoints for liveness and readiness probes.
+type healthHandler struct{ db *pgxpool.Pool }
 
-// HealthHandler provides health check endpoints for liveness and readiness probes.
-type HealthHandler struct{ db *pgxpool.Pool }
-
-// NewHealthHandler creates a new health handler with the provided database pool.
-func NewHealthHandler(db *pgxpool.Pool) *HealthHandler {
-	return &HealthHandler{db: db}
-}
+// newHealthHandler creates a new health handler with the provided database pool.
+func newHealthHandler(db *pgxpool.Pool) *healthHandler { return &healthHandler{db: db} }
 
 // Liveness returns a simple handler for liveness probe.
 // The liveness probe is used to know when to restart a container.
-func (h *HealthHandler) Liveness() http.HandlerFunc {
+func (h *healthHandler) Liveness() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
@@ -86,7 +54,7 @@ func (h *HealthHandler) Liveness() http.HandlerFunc {
 // Readiness returns a handler for readiness probe.
 // The readiness probe is used to know when a container is ready to start accepting traffic.
 // It checks if the database connection is healthy.
-func (h *HealthHandler) Readiness() http.HandlerFunc {
+func (h *healthHandler) Readiness() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
 
@@ -102,43 +70,6 @@ func (h *HealthHandler) Readiness() http.HandlerFunc {
 		w.WriteHeader(http.StatusOK)
 		_, _ = w.Write([]byte(`{"status":"up"}`))
 	}
-}
-
-// WebAPI constructs a http.Handler with all application routes bound.
-func WebAPI(cfg Config, routeAdder RouteAdder, options ...func(opts *Options)) http.Handler {
-	logger := func(ctx context.Context, msg string, args ...any) {
-		cfg.Log.Info(ctx, msg, args...)
-	}
-
-	app := web.NewApp(
-		logger,
-		cfg.Tracer,
-		mid.Otel(cfg.Tracer),
-		mid.Logger(cfg.Log),
-		mid.Errors(cfg.Log),
-		mid.Panics(),
-	)
-
-	var opts Options
-	for _, option := range options {
-		option(&opts)
-	}
-
-	if len(opts.corsOrigin) > 0 {
-		app.EnableCORS(opts.corsOrigin)
-	}
-
-	routeAdder.Add(app, cfg)
-
-	for _, site := range opts.sites {
-		if site.react {
-			app.FileServerReact(site.static, site.staticDir, site.staticPath)
-		} else {
-			app.FileServer(site.static, site.staticDir, site.staticPath)
-		}
-	}
-
-	return app
 }
 
 // WrapWithMiddleware applies the standard middleware stack to an existing HTTP handler.
@@ -196,7 +127,7 @@ func WrapWithMiddleware(cfg Config, handler http.Handler, options ...func(opts *
 	finalMux := http.NewServeMux()
 
 	// Register health check endpoints directly on the mux WITHOUT middleware.
-	healthHandler := NewHealthHandler(cfg.DB)
+	healthHandler := newHealthHandler(cfg.DB)
 	finalMux.HandleFunc("/api/v1/health/liveness", healthHandler.Liveness())
 	finalMux.HandleFunc("/api/v1/health/readiness", healthHandler.Readiness())
 
