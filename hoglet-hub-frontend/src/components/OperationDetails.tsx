@@ -71,13 +71,13 @@ export default function OperationDetails({
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-lg shadow-md p-6 animate-pulse">
-        <div className="h-8 bg-gray-200 rounded w-1/2 mb-4"></div>
+      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6 animate-pulse border border-blue-100">
+        <div className="h-8 bg-blue-200 rounded w-1/2 mb-4"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           {[...Array(6)].map((_, i) => (
             <div key={i}>
-              <div className="h-4 bg-gray-200 rounded w-24 mb-2"></div>
-              <div className="h-6 bg-gray-200 rounded w-32"></div>
+              <div className="h-4 bg-blue-100 rounded w-24 mb-2"></div>
+              <div className="h-6 bg-blue-100 rounded w-32"></div>
             </div>
           ))}
         </div>
@@ -86,66 +86,58 @@ export default function OperationDetails({
   }
 
   return (
-    <article className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-      <header className="flex justify-between items-start mb-4">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+    <article className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6 border-t-4 border-blue-500">
+      <header className="flex justify-between items-start mb-6 pb-4 border-b border-blue-100">
+        <h2 className="text-2xl font-bold text-blue-800">
           Operation #{operation.id}
         </h2>
         {StatusIndicator}
       </header>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="bg-white p-4 rounded-md shadow-sm border border-blue-100">
+          <p className="text-sm font-medium text-blue-600 mb-1">
             Operation Type
           </p>
-          <p className="font-medium text-gray-900 dark:text-white">
+          <p className="font-semibold text-gray-900">
             {operation.operation_type}
           </p>
         </div>
 
         {operation.tenant_id && (
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Tenant ID
-            </p>
-            <p className="font-medium text-gray-900 dark:text-white">
-              {operation.tenant_id}
-            </p>
+          <div className="bg-white p-4 rounded-md shadow-sm border border-blue-100">
+            <p className="text-sm font-medium text-blue-600 mb-1">Tenant ID</p>
+            <p className="font-semibold text-gray-900">{operation.tenant_id}</p>
           </div>
         )}
 
-        <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Created By</p>
-          <p className="font-medium text-gray-900 dark:text-white">
-            {operation.created_by}
-          </p>
+        <div className="bg-white p-4 rounded-md shadow-sm border border-blue-100">
+          <p className="text-sm font-medium text-blue-600 mb-1">Created By</p>
+          <p className="font-semibold text-gray-900">{operation.created_by}</p>
         </div>
 
-        <div>
-          <p className="text-sm text-gray-500 dark:text-gray-400">Created At</p>
-          <p className="font-medium text-gray-900 dark:text-white">
+        <div className="bg-white p-4 rounded-md shadow-sm border border-blue-100">
+          <p className="text-sm font-medium text-blue-600 mb-1">Created At</p>
+          <p className="font-semibold text-gray-900">
             {formatDate(operation.created_at)}
           </p>
         </div>
 
         {operation.started_at && (
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Started At
-            </p>
-            <p className="font-medium text-gray-900 dark:text-white">
+          <div className="bg-white p-4 rounded-md shadow-sm border border-blue-100">
+            <p className="text-sm font-medium text-blue-600 mb-1">Started At</p>
+            <p className="font-semibold text-gray-900">
               {formatDate(operation.started_at)}
             </p>
           </div>
         )}
 
         {operation.completed_at && (
-          <div>
-            <p className="text-sm text-gray-500 dark:text-gray-400">
+          <div className="bg-white p-4 rounded-md shadow-sm border border-blue-100">
+            <p className="text-sm font-medium text-blue-600 mb-1">
               Completed At
             </p>
-            <p className="font-medium text-gray-900 dark:text-white">
+            <p className="font-semibold text-gray-900">
               {formatDate(operation.completed_at)}
             </p>
           </div>
@@ -153,31 +145,33 @@ export default function OperationDetails({
       </div>
 
       {ParametersJSON && (
-        <section className="mb-6">
-          <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+        <section className="mb-8">
+          <h3 className="text-lg font-semibold mb-3 text-blue-800 pb-1 border-b border-blue-100">
             Parameters
           </h3>
-          <pre className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md text-sm overflow-x-auto">
+          <pre className="bg-white p-4 rounded-md text-sm overflow-x-auto border border-blue-100 shadow-sm text-blue-900">
             {ParametersJSON}
           </pre>
         </section>
       )}
 
       {ResultJSON && (
-        <section className="mb-6">
-          <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+        <section className="mb-8">
+          <h3 className="text-lg font-semibold mb-3 text-blue-800 pb-1 border-b border-blue-100">
             Result
           </h3>
-          <pre className="bg-gray-50 dark:bg-gray-900 p-3 rounded-md text-sm overflow-x-auto">
+          <pre className="bg-white p-4 rounded-md text-sm overflow-x-auto border border-blue-100 shadow-sm text-blue-900">
             {ResultJSON}
           </pre>
         </section>
       )}
 
       {operation.error_message && (
-        <section className="mb-6" aria-live="polite">
-          <h3 className="text-lg font-semibold mb-2 text-red-600">Error</h3>
-          <div className="bg-red-50 dark:bg-red-900/20 p-3 rounded-md text-red-700 dark:text-red-400">
+        <section className="mb-8" aria-live="polite">
+          <h3 className="text-lg font-semibold mb-3 text-red-600 pb-1 border-b border-red-100">
+            Error
+          </h3>
+          <div className="bg-red-50 p-4 rounded-md text-red-800 border border-red-200 shadow-sm">
             {operation.error_message}
           </div>
         </section>
@@ -185,15 +179,15 @@ export default function OperationDetails({
 
       {operation._links && Object.keys(operation._links).length > 0 && (
         <section>
-          <h3 className="text-lg font-semibold mb-2 text-gray-900 dark:text-white">
+          <h3 className="text-lg font-semibold mb-3 text-blue-800 pb-1 border-b border-blue-100">
             Links
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-3">
             {Object.entries(operation._links).map(([key, url]) => (
               <a
                 key={key}
                 href={url}
-                className="px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-md text-sm hover:bg-blue-200 dark:hover:bg-blue-900/50 transition-colors"
+                className="px-4 py-2 bg-blue-100 text-blue-800 rounded-md text-sm hover:bg-blue-200 transition-colors border border-blue-200 font-medium"
                 target="_blank"
                 rel="noopener noreferrer"
                 aria-label={`Open ${key} link`}

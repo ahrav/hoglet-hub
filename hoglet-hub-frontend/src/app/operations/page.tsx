@@ -36,17 +36,21 @@ export default function OperationsPage(): React.ReactElement {
   if (isCheckingAuth) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading...</div>
+        <div className="text-xl text-blue-600">Loading...</div>
       </div>
     );
   }
 
   return (
     <div className="max-w-4xl mx-auto" role="main">
-      <h1 className="text-3xl font-bold mb-8 text-center">{PAGE_TITLE}</h1>
+      <h1 className="text-3xl font-bold mb-8 text-center text-blue-800">
+        {PAGE_TITLE}
+      </h1>
 
-      <div className="bg-white rounded-lg shadow-md p-6 mb-8">
-        <h2 className="text-xl font-semibold mb-4">{LOOKUP_SECTION_TITLE}</h2>
+      <div className="bg-gradient-to-b from-white to-blue-50 rounded-lg shadow-md p-6 mb-8 border-t-4 border-blue-500">
+        <h2 className="text-xl font-semibold mb-4 text-blue-800 border-b border-blue-200 pb-2">
+          {LOOKUP_SECTION_TITLE}
+        </h2>
         <form
           onSubmit={handleSubmit}
           className="flex gap-4"
@@ -57,13 +61,13 @@ export default function OperationsPage(): React.ReactElement {
             value={operationId}
             onChange={(e) => setOperationId(e.target.value)}
             placeholder="Enter Operation ID"
-            className="flex-grow px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-grow px-4 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-900 placeholder-blue-400"
             aria-label="Operation ID"
           />
           <button
             type="submit"
             disabled={isLoading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400"
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 font-medium transition-colors duration-200"
             aria-busy={isLoading}
           >
             {isLoading ? "Loading..." : "View"}
@@ -72,10 +76,10 @@ export default function OperationsPage(): React.ReactElement {
 
         {error && (
           <div
-            className="mt-4 p-3 bg-red-100 text-red-700 rounded-md"
+            className="mt-4 p-4 bg-red-100 text-red-800 border-l-4 border-red-500 rounded-md"
             role="alert"
           >
-            <p>{error.message}</p>
+            <p className="font-medium">{error.message}</p>
           </div>
         )}
       </div>
@@ -84,10 +88,10 @@ export default function OperationsPage(): React.ReactElement {
 
       {!operation && !isLoading && !error && (
         <div
-          className="bg-gray-50 rounded-lg p-8 text-center"
+          className="bg-gradient-to-b from-gray-50 to-gray-100 rounded-lg p-8 text-center border border-gray-200 shadow-sm"
           aria-live="polite"
         >
-          <p className="text-gray-500 text-lg">{EMPTY_STATE_MESSAGE}</p>
+          <p className="text-blue-700 text-lg">{EMPTY_STATE_MESSAGE}</p>
         </div>
       )}
     </div>
