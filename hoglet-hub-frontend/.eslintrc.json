@@ -16,10 +16,11 @@
     "@typescript-eslint",
     "import",
     "react-hooks",
-    "jsx-a11y"
+    "jsx-a11y",
+    "unused-imports"
   ],
   "rules": {
-    "eslint-comments/no-unused-disable": "off",
+    "eslint-comments/no-unused-disable": "error",
     "@typescript-eslint/no-unused-vars": [
       "warn",
       {
@@ -32,14 +33,31 @@
     "import/order": [
       "error",
       {
-        "groups": ["builtin", "external", "internal", "parent", "sibling", "index"],
+        "groups": [
+          "builtin",
+          "external",
+          "internal",
+          "parent",
+          "sibling",
+          "index"
+        ],
         "newlines-between": "always",
         "alphabetize": { "order": "asc", "caseInsensitive": true }
       }
     ],
     "import/no-duplicates": "error",
     "react-hooks/rules-of-hooks": "error",
-    "react-hooks/exhaustive-deps": "warn"
+    "react-hooks/exhaustive-deps": "warn",
+    "unused-imports/no-unused-imports": "error",
+    "unused-imports/no-unused-vars": [
+      "warn",
+      {
+        "vars": "all",
+        "varsIgnorePattern": "^_",
+        "args": "after-used",
+        "argsIgnorePattern": "^_"
+      }
+    ]
   },
   "ignorePatterns": ["src/api/generated/**/*", "node_modules", ".next", "out"],
   "overrides": [

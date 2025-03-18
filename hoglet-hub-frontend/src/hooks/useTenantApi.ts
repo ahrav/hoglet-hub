@@ -27,7 +27,7 @@ export function useTenantApi() {
   });
 
   // Get operation query factory with dynamic polling.
-  const getOperation = (operationId: number | null) => {
+  const useOperationQuery = (operationId: number | null) => {
     return useQuery<
       OperationResponse | null,
       Error,
@@ -68,6 +68,6 @@ export function useTenantApi() {
   return {
     createTenant: createTenantMutation,
     deleteTenant: deleteTenantMutation,
-    getOperation,
+    getOperation: useOperationQuery,
   };
 }

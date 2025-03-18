@@ -12,7 +12,6 @@ import PageLayout from "../components/layout/PageLayout";
 import "../api/config";
 
 // Metadata constants
-const APP_NAME = "Hoglet Hub";
 const APP_DESCRIPTION =
   "Internal tenant provisioning system for managing and provisioning tenants across multiple regions";
 const PAGE_TITLE_TEMPLATE = "%s | Hoglet Hub";

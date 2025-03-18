@@ -9,6 +9,15 @@ import { CancelablePromise } from "./generated/core/CancelablePromise";
 OpenAPI.BASE = API_BASE_URL;
 OpenAPI.WITH_CREDENTIALS = true;
 
+// Utility function to create cancellable versions of API calls
+function withCancellation<T>(promiseFactory: () => CancelablePromise<T>) {
+  const promise = promiseFactory();
+  return {
+    promise,
+    cancel: () => promise.cancel(),
+  };
+}
+
 export const TenantService = {
   createTenant: async (params: { requestBody: TenantCreate }) => {
     try {
@@ -19,14 +28,8 @@ export const TenantService = {
     }
   },
 
-  createTenantWithCancellation: (params: { requestBody: TenantCreate }) => {
-    const promise = DefaultService.createTenant(params);
-
-    return {
-      promise,
-      cancel: () => promise.cancel(),
-    };
-  },
+  createTenantWithCancellation: (params: { requestBody: TenantCreate }) =>
+    withCancellation(() => DefaultService.createTenant(params)),
 
   deleteTenant: async (params: { tenantId: number }) => {
     try {
@@ -37,14 +40,8 @@ export const TenantService = {
     }
   },
 
-  deleteTenantWithCancellation: (params: { tenantId: number }) => {
-    const promise = DefaultService.deleteTenant(params);
-
-    return {
-      promise,
-      cancel: () => promise.cancel(),
-    };
-  },
+  deleteTenantWithCancellation: (params: { tenantId: number }) =>
+    withCancellation(() => DefaultService.deleteTenant(params)),
 };
 
 export const OperationService = {
@@ -56,6 +53,9 @@ export const OperationService = {
       throw error;
     }
   },
+
+  getOperationWithCancellation: (params: { operationId: number }) =>
+    withCancellation(() => DefaultService.getOperation(params)),
 };
 
 export { DefaultService };
