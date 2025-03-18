@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useReducer } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useForm, Controller } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -9,63 +9,13 @@ import {
 } from "../schemas/tenantSchema";
 import { useTenantApi } from "../hooks/useTenantApi";
 import { OperationStatus } from "../api/generated/models/OperationStatus";
-import { OperationResponse } from "../api/generated/models/OperationResponse";
-
-type FormState = {
-  status: "idle" | "submitting" | "polling" | "success" | "error" | "pending";
-  operationResult: OperationResponse | null;
-  error: Error | null;
-};
-
-type FormAction =
-  | { type: "SUBMIT" }
-  | { type: "POLLING" }
-  | { type: "SUCCESS"; result: OperationResponse }
-  | { type: "ERROR"; error: Error }
-  | { type: "PENDING"; result: OperationResponse }
-  | { type: "RESET" };
-
-function formReducer(state: FormState, action: FormAction): FormState {
-  switch (action.type) {
-    case "SUBMIT":
-      return { ...state, status: "submitting", error: null };
-    case "POLLING":
-      return { ...state, status: "polling" };
-    case "SUCCESS":
-      return {
-        ...state,
-        status: "success",
-        operationResult: action.result,
-      };
-    case "ERROR":
-      return {
-        ...state,
-        status: "error",
-        error: action.error,
-      };
-    case "PENDING":
-      return {
-        ...state,
-        status: "pending",
-        operationResult: action.result,
-      };
-    case "RESET":
-      return {
-        status: "idle",
-        operationResult: null,
-        error: null,
-      };
-  }
-}
 
 export default function TenantCreateForm() {
-  const { error: apiError, createTenant, pollOperationStatus } = useTenantApi();
-
-  const [state, dispatch] = useReducer(formReducer, {
-    status: "idle",
-    operationResult: null,
-    error: null,
-  });
+  const { createTenant, getOperation } = useTenantApi();
+  const [operationId, setOperationId] = useState<number | null>(null);
+  const [formState, setFormState] = useState<
+    "idle" | "submitting" | "success" | "error" | "pending"
+  >("idle");
 
   const {
     control,
@@ -82,7 +32,24 @@ export default function TenantCreateForm() {
     },
   });
 
-  const getStatusColor = useCallback((status: OperationStatus): string => {
+  const operationQuery = getOperation(operationId);
+  useEffect(() => {
+    if (!operationQuery.data) return;
+
+    if (operationQuery.data.isComplete) {
+      if (operationQuery.data.status === "completed") {
+        setFormState("success");
+      } else {
+        setFormState("error");
+      }
+    } else if (operationQuery.data.status === "pending") {
+      setFormState("pending");
+    }
+  }, [operationQuery.data]);
+
+  const getStatusColor = useCallback((status?: OperationStatus): string => {
+    if (!status) return "text-gray-500"; // Default color for undefined
+
     switch (status) {
       case "completed":
         return "text-green-500";
@@ -99,77 +66,29 @@ export default function TenantCreateForm() {
 
   const onSubmit = useCallback(
     async (data: TenantCreateFormData) => {
-      dispatch({ type: "SUBMIT" });
+      setFormState("submitting");
 
-      // TODO: Come back and refactor this monstrosity.
       try {
-        const response = await createTenant(data);
-        if (response) {
-          dispatch({ type: "POLLING" });
-
-          try {
-            const operationResult = await pollOperationStatus(
-              response.operation_id
-            );
-
-            if (operationResult) {
-              if (operationResult.status === "completed") {
-                dispatch({ type: "SUCCESS", result: operationResult });
-              } else if (
-                operationResult.status === "failed" ||
-                operationResult.status === "cancelled"
-              ) {
-                dispatch({
-                  type: "ERROR",
-                  error: new Error(
-                    operationResult.error_message ||
-                      `Operation ${operationResult.status}`
-                  ),
-                });
-              } else {
-                dispatch({ type: "PENDING", result: operationResult });
-              }
-            } else {
-              dispatch({
-                type: "ERROR",
-                error: new Error("Failed to retrieve operation result"),
-              });
-            }
-          } catch (pollError) {
-            console.error("Error polling operation status:", pollError);
-            dispatch({
-              type: "ERROR",
-              error:
-                pollError instanceof Error
-                  ? pollError
-                  : new Error("Failed to poll operation status"),
-            });
-          }
-        } else {
-          dispatch({
-            type: "ERROR",
-            error: new Error("No response received from create tenant API"),
-          });
+        const result = await createTenant.mutateAsync(data);
+        if (result && result.operation_id) {
+          setOperationId(result.operation_id);
         }
-      } catch (err) {
-        console.error("Error creating tenant:", err);
-        dispatch({
-          type: "ERROR",
-          error:
-            err instanceof Error ? err : new Error("Unknown error occurred"),
-        });
+      } catch (error) {
+        console.error("Error creating tenant:", error);
+        setFormState("error");
       }
     },
-    [createTenant, pollOperationStatus]
+    [createTenant]
   );
 
   const handleReset = useCallback(() => {
     resetForm();
-    dispatch({ type: "RESET" });
+    setOperationId(null);
+    setFormState("idle");
   }, [resetForm]);
 
   const renderOperationStatus = useCallback(() => {
-    if (!state.operationResult) return null;
+    if (!operationQuery.data) return null;
 
     return (
       <div
@@ -180,26 +99,26 @@ export default function TenantCreateForm() {
         <h3 className="text-lg font-medium">Operation Status</h3>
         <p className="mt-1">
           <span className="font-medium">Status:</span>{" "}
-          <span className={`${getStatusColor(state.operationResult.status)}`}>
-            {state.operationResult.status}
+          <span className={`${getStatusColor(operationQuery.data.status)}`}>
+            {operationQuery.data.status}
           </span>
         </p>
-        {state.operationResult.error_message && (
+        {operationQuery.data.error_message && (
           <p className="mt-1 text-red-500">
-            Error: {state.operationResult.error_message}
+            Error: {operationQuery.data.error_message}
           </p>
         )}
-        {state.operationResult.status === "completed" && (
+        {operationQuery.data.status === "completed" && (
           <p className="mt-1 text-green-500">Tenant successfully created!</p>
         )}
-        {state.operationResult.status === "pending" && (
+        {operationQuery.data.status === "pending" && (
           <p className="mt-1 text-blue-500">
             Tenant is being created. This may take a few minutes.
           </p>
         )}
       </div>
     );
-  }, [state.operationResult, getStatusColor]);
+  }, [operationQuery.data, getStatusColor]);
 
   return (
     <div className="w-full max-w-md mx-auto p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
@@ -233,7 +152,7 @@ export default function TenantCreateForm() {
                 aria-describedby={errors.name ? "name-error" : undefined}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
                 placeholder="tenant-name"
-                disabled={state.status !== "idle"}
+                disabled={formState !== "idle"}
               />
             )}
           />
@@ -267,7 +186,7 @@ export default function TenantCreateForm() {
                 aria-invalid={!!errors.region}
                 aria-describedby={errors.region ? "region-error" : undefined}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                disabled={state.status !== "idle"}
+                disabled={formState !== "idle"}
               >
                 <option value="us1">US East (us1)</option>
                 <option value="us2">US West (us2)</option>
@@ -310,7 +229,7 @@ export default function TenantCreateForm() {
                 aria-invalid={!!errors.tier}
                 aria-describedby={errors.tier ? "tier-error" : undefined}
                 className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"
-                disabled={state.status !== "idle"}
+                disabled={formState !== "idle"}
               >
                 <option value="free">Free</option>
                 <option value="pro">Pro</option>
@@ -332,60 +251,62 @@ export default function TenantCreateForm() {
         <div>
           <button
             type="submit"
-            disabled={state.status !== "idle"}
-            aria-busy={
-              state.status === "submitting" || state.status === "polling"
-            }
+            disabled={formState !== "idle" || createTenant.isPending}
+            aria-busy={formState === "submitting" || createTenant.isPending}
             className={`w-full py-2 px-4 rounded-md text-white font-medium ${
-              state.status === "idle"
+              formState === "idle" && !createTenant.isPending
                 ? "bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
                 : "bg-gray-400 cursor-not-allowed"
             }`}
           >
-            {state.status === "idle" && "Create Tenant"}
-            {state.status === "submitting" && "Creating..."}
-            {state.status === "polling" && "Processing..."}
-            {state.status === "pending" && "Provisioning..."}
-            {state.status === "success" && "Created Successfully"}
-            {state.status === "error" && "Error"}
+            {formState === "idle" && !createTenant.isPending && "Create Tenant"}
+            {(formState === "submitting" || createTenant.isPending) &&
+              "Creating..."}
+            {formState === "pending" && "Provisioning..."}
+            {formState === "success" && "Created Successfully"}
+            {formState === "error" && "Error"}
           </button>
         </div>
       </form>
 
-      {apiError && (
+      {createTenant.isError && (
         <div
           className="mt-4 p-3 bg-red-100 text-red-700 rounded-md"
           role="alert"
         >
-          <p>{apiError.message}</p>
+          <p>
+            Error:{" "}
+            {createTenant.error instanceof Error
+              ? createTenant.error.message
+              : "Failed to create tenant"}
+          </p>
         </div>
       )}
 
-      {state.error && (
+      {operationQuery.isError && (
         <div
           className="mt-4 p-3 bg-red-100 text-red-700 rounded-md"
           role="alert"
         >
-          <p>Error: {state.error.message}</p>
+          <p>
+            Error:{" "}
+            {operationQuery.error instanceof Error
+              ? operationQuery.error.message
+              : "Failed to fetch operation status"}
+          </p>
         </div>
       )}
 
-      {state.status !== "idle" && renderOperationStatus()}
+      {operationId && renderOperationStatus()}
 
-      {(state.status === "success" ||
-        state.status === "pending" ||
-        state.status === "error") && (
+      {(formState === "success" || formState === "error") && (
         <div className="mt-4">
           <button
             onClick={handleReset}
             className="w-full py-2 px-4 bg-gray-200 hover:bg-gray-300 rounded-md text-gray-800 font-medium"
             type="button"
           >
-            {state.status === "success"
-              ? "Create Another Tenant"
-              : state.status === "error"
-              ? "Try Again"
-              : "Create New Tenant"}
+            {formState === "success" ? "Create Another Tenant" : "Try Again"}
           </button>
         </div>
       )}

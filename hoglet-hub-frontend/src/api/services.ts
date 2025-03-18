@@ -2,34 +2,60 @@ import { DefaultService } from "./generated/services/DefaultService";
 import { OpenAPI } from "./generated/core/OpenAPI";
 import { TenantCreate } from "./generated/models/TenantCreate";
 import { API_BASE_URL } from "./config";
+import { CancelablePromise } from "./generated/core/CancelablePromise";
 
 // Set the correct base URL before any API calls
 // This ensures the OpenAPI configuration is properly set
 OpenAPI.BASE = API_BASE_URL;
 OpenAPI.WITH_CREDENTIALS = true;
 
-// Create wrapper functions around DefaultService methods to ensure
-// the BASE URL is set correctly before each call
 export const TenantService = {
-  async createTenant(params: { requestBody: TenantCreate }) {
-    // Ensure BASE URL is set correctly before each API call
-    OpenAPI.BASE = API_BASE_URL;
-    return DefaultService.createTenant(params);
+  createTenant: async (params: { requestBody: TenantCreate }) => {
+    try {
+      return await DefaultService.createTenant(params);
+    } catch (error) {
+      console.error("Failed to create tenant:", error);
+      throw error;
+    }
   },
 
-  async deleteTenant(params: { tenantId: number }) {
-    OpenAPI.BASE = API_BASE_URL;
-    return DefaultService.deleteTenant(params);
+  createTenantWithCancellation: (params: { requestBody: TenantCreate }) => {
+    const promise = DefaultService.createTenant(params);
+
+    return {
+      promise,
+      cancel: () => promise.cancel(),
+    };
+  },
+
+  deleteTenant: async (params: { tenantId: number }) => {
+    try {
+      return await DefaultService.deleteTenant(params);
+    } catch (error) {
+      console.error(`Failed to delete tenant ${params.tenantId}:`, error);
+      throw error;
+    }
+  },
+
+  deleteTenantWithCancellation: (params: { tenantId: number }) => {
+    const promise = DefaultService.deleteTenant(params);
+
+    return {
+      promise,
+      cancel: () => promise.cancel(),
+    };
   },
 };
 
 export const OperationService = {
-  async getOperation(params: { operationId: number }) {
-    OpenAPI.BASE = API_BASE_URL;
-    return DefaultService.getOperation(params);
+  getOperation: async (params: { operationId: number }) => {
+    try {
+      return await DefaultService.getOperation(params);
+    } catch (error) {
+      console.error(`Failed to get operation ${params.operationId}:`, error);
+      throw error;
+    }
   },
 };
 
-// Export the original service for direct access
-// (though using the wrappers above is preferred)
 export { DefaultService };

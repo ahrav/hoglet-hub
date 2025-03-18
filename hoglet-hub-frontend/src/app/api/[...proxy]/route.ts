@@ -40,7 +40,7 @@ export async function GET(
   request: NextRequest,
   context: { params: ProxyParams }
 ): Promise<Response> {
-  const params = context.params;
+  const params = await context.params;
   return await proxyRequest(request, params.proxy, "GET");
 }
 
@@ -48,7 +48,7 @@ export async function POST(
   request: NextRequest,
   context: { params: ProxyParams }
 ): Promise<Response> {
-  const params = context.params;
+  const params = await context.params;
   return await proxyRequest(request, params.proxy, "POST");
 }
 
@@ -56,7 +56,7 @@ export async function PUT(
   request: NextRequest,
   context: { params: ProxyParams }
 ): Promise<Response> {
-  const params = context.params;
+  const params = await context.params;
   return await proxyRequest(request, params.proxy, "PUT");
 }
 
@@ -64,7 +64,7 @@ export async function DELETE(
   request: NextRequest,
   context: { params: ProxyParams }
 ): Promise<Response> {
-  const params = context.params;
+  const params = await context.params;
   return await proxyRequest(request, params.proxy, "DELETE");
 }
 
@@ -72,7 +72,7 @@ export async function OPTIONS(
   request: NextRequest,
   context: { params: ProxyParams }
 ): Promise<Response> {
-  context.params;
+  const params = await context.params;
 
   return new Response(null, {
     status: 204,
