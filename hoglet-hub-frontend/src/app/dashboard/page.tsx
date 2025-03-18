@@ -26,12 +26,14 @@ export default function DashboardPage() {
           description="Provision a new tenant with custom settings."
           icon="💡"
           link="/tenants/create"
+          accentColor="green"
         />
         <DashboardCard
           title="View Operations"
           description="Track the status of ongoing and completed operations."
           icon="📊"
           link="/operations"
+          accentColor="blue"
         />
         <DashboardCard
           title="System Status"
@@ -40,6 +42,7 @@ export default function DashboardPage() {
           link="#"
           disabled={true}
           comingSoon={true}
+          accentColor="purple"
         />
         <DashboardCard
           title="Manage Users"
@@ -48,6 +51,7 @@ export default function DashboardPage() {
           link="#"
           disabled={true}
           comingSoon={true}
+          accentColor="orange"
         />
         <DashboardCard
           title="Settings"
@@ -56,6 +60,7 @@ export default function DashboardPage() {
           link="#"
           disabled={true}
           comingSoon={true}
+          accentColor="teal"
         />
         <DashboardCard
           title="Help & Support"
@@ -64,6 +69,7 @@ export default function DashboardPage() {
           link="#"
           disabled={true}
           comingSoon={true}
+          accentColor="red"
         />
       </div>
 
@@ -86,6 +92,7 @@ interface DashboardCardProps {
   link: string;
   disabled?: boolean;
   comingSoon?: boolean;
+  accentColor?: "blue" | "green" | "purple" | "orange" | "teal" | "red";
 }
 
 function DashboardCard({
@@ -95,23 +102,68 @@ function DashboardCard({
   link,
   disabled = false,
   comingSoon = false,
+  accentColor = "blue",
 }: DashboardCardProps) {
+  const accentColorClasses = {
+    blue: "border-t-4 border-blue-500",
+    green: "border-t-4 border-green-500",
+    purple: "border-t-4 border-purple-500",
+    orange: "border-t-4 border-orange-500",
+    teal: "border-t-4 border-teal-500",
+    red: "border-t-4 border-red-500",
+  };
+
+  const titleColorClasses = {
+    blue: "text-blue-800",
+    green: "text-green-800",
+    purple: "text-purple-800",
+    orange: "text-orange-800",
+    teal: "text-teal-800",
+    red: "text-red-800",
+  };
+
+  const descriptionColorClasses = {
+    blue: "text-blue-700 text-opacity-70",
+    green: "text-green-700 text-opacity-70",
+    purple: "text-purple-700 text-opacity-70",
+    orange: "text-orange-700 text-opacity-70",
+    teal: "text-teal-700 text-opacity-70",
+    red: "text-red-700 text-opacity-70",
+  };
+
+  const badgeColorClasses = {
+    blue: "bg-blue-100 text-blue-800",
+    green: "bg-green-100 text-green-800",
+    purple: "bg-purple-100 text-purple-800",
+    orange: "bg-orange-100 text-orange-800",
+    teal: "bg-teal-100 text-teal-800",
+    red: "bg-red-100 text-red-800",
+  };
+
   const content = (
     <div
-      className={`bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow ${
-        disabled ? "opacity-70" : ""
-      }`}
+      className={`bg-gradient-to-b from-white to-gray-50 p-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-300 ${
+        accentColorClasses[accentColor]
+      } ${disabled ? "opacity-70" : "hover:translate-y-[-2px]"}`}
     >
       <div className="flex items-center mb-4">
         <span className="text-3xl mr-3">{icon}</span>
-        <h2 className="text-xl font-semibold">{title}</h2>
+        <h2
+          className={`text-xl font-semibold ${titleColorClasses[accentColor]} border-b border-opacity-20 pb-1`}
+        >
+          {title}
+        </h2>
         {comingSoon && (
-          <span className="ml-2 px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
+          <span
+            className={`ml-2 px-2 py-1 text-xs rounded-full ${badgeColorClasses[accentColor]}`}
+          >
             Coming Soon
           </span>
         )}
       </div>
-      <p className="text-gray-600 mb-4">{description}</p>
+      <p className={`${descriptionColorClasses[accentColor]} mb-4`}>
+        {description}
+      </p>
     </div>
   );
 
