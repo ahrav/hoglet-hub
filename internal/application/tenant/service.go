@@ -389,13 +389,6 @@ func (s *Service) GetOperationStatus(ctx context.Context, operationID int64) (*o
 // The method is deliberately designed to run in its own goroutine to avoid blocking
 // the service API. This is important since workflows can take a long time to complete.
 //
-// Design considerations:
-// 1. Asynchronous cleanup: Runs in a separate goroutine to avoid blocking API responses
-// 2. Resource management: Prevents memory leaks by removing completed workflows
-// 3. Wait mechanism: Blocks on the workflow's result channel to ensure proper sequencing
-// 4. Thread safety: Uses mutex to safely manage the shared activeWorkflows map
-// 5. Observability: Adds tracing spans and logging for monitoring workflow completion
-//
 // This design pattern complements the factory pattern by handling the lifecycle
 // of workflow objects created by the factory, ensuring proper resource cleanup regardless
 // of which specific workflow implementation was created.
