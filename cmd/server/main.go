@@ -27,6 +27,7 @@ import (
 	tenantApp "github.com/ahrav/hoglet-hub/internal/application/tenant"
 	httpServer "github.com/ahrav/hoglet-hub/internal/infra/adapters/http"
 	handler "github.com/ahrav/hoglet-hub/internal/infra/adapters/http/handler"
+	"github.com/ahrav/hoglet-hub/internal/infra/metrics"
 	operationRepo "github.com/ahrav/hoglet-hub/internal/infra/storage/operation/postgres"
 	tenantRepo "github.com/ahrav/hoglet-hub/internal/infra/storage/tenant/postgres"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
@@ -227,6 +228,12 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 		}
 	}()
 
+	mp := otel.GetMeterProvider()
+	metricsRegistry, err := metrics.NewRegistry(mp)
+	if err != nil {
+		return fmt.Errorf("failed to create metrics registry: %w", err)
+	}
+
 	// -------------------------------------------------------------------------
 	// Initialize repositories, services and handlers.
 	log.Info(ctx, "startup", "status", "initializing repositories and services")
@@ -237,7 +244,13 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 
 	// Initialize application services.
 	operationService := operationApp.NewService(operationRepository, log, tracer)
-	tenantService := tenantApp.NewService(tenantRepository, operationRepository, log, tracer)
+	tenantService := tenantApp.NewService(
+		tenantRepository,
+		operationRepository,
+		log,
+		tracer,
+		metricsRegistry.Tenant,
+	)
 
 	// Initialize HTTP handlers.
 	tenantHandler := handler.NewTenantHandler(tenantService)
@@ -262,6 +275,7 @@ func run(ctx context.Context, log *logger.Logger, hostname string) error {
 		Log:              log,
 		DB:               pool,
 		Tracer:           tracer,
+		APIMetrics:       metricsRegistry.API,
 		TenantService:    tenantService,
 		OperationService: operationService,
 	}

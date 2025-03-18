@@ -229,6 +229,52 @@ func (m *MockWorkflowFactory) NewTenantDeletionWorkflow(
 	return args.Get(0).(workflow.Workflow)
 }
 
+type MockProvisioningMetrics struct{ mock.Mock }
+
+func (m *MockProvisioningMetrics) IncProvisioningSuccess(ctx context.Context, tenantTier string, region string) {
+	m.Called(ctx, tenantTier, region)
+}
+
+func (m *MockProvisioningMetrics) IncProvisioningFailure(ctx context.Context, tenantTier string, region string, reason string) {
+	m.Called(ctx, tenantTier, region, reason)
+}
+
+func (m *MockProvisioningMetrics) ObserveProvisioningDuration(
+	ctx context.Context,
+	tenantTier string,
+	region string,
+	duration time.Duration,
+) {
+	m.Called(ctx, tenantTier, region, duration)
+}
+
+func (m *MockProvisioningMetrics) ObserveProvisioningStageDuration(
+	ctx context.Context,
+	stage string,
+	tenantTier string,
+	region string,
+	duration time.Duration,
+) {
+	m.Called(ctx, stage, tenantTier, region, duration)
+}
+
+func (m *MockProvisioningMetrics) IncTenantDeletionSuccess(ctx context.Context, tenantTier string, region string) {
+	m.Called(ctx, tenantTier, region)
+}
+
+func (m *MockProvisioningMetrics) IncTenantDeletionFailure(ctx context.Context, tenantTier string, region string, reason string) {
+	m.Called(ctx, tenantTier, region, reason)
+}
+
+func (m *MockProvisioningMetrics) ObserveTenantDeletionDuration(
+	ctx context.Context,
+	tenantTier string,
+	region string,
+	duration time.Duration,
+) {
+	m.Called(ctx, tenantTier, region, duration)
+}
+
 func TestServiceCreate(t *testing.T) {
 	ctx := context.Background()
 	validParams := tenant.CreateParams{
@@ -351,6 +397,7 @@ func TestServiceCreate(t *testing.T) {
 				mockWorkflowFactory,
 				logger,
 				tracer,
+				new(MockProvisioningMetrics),
 			)
 
 			res, err := svc.Create(ctx, tc.inputParams)
@@ -478,6 +525,7 @@ func TestServiceDelete(t *testing.T) {
 				mockWorkflowFactory,
 				logger,
 				tracer,
+				new(MockProvisioningMetrics),
 			)
 
 			res, err := svc.Delete(ctx, tc.tenantID)
@@ -554,7 +602,7 @@ func TestServiceGetOperationStatus(t *testing.T) {
 
 		logger := logger.Noop()
 		tracer := noop.NewTracerProvider().Tracer("test")
-		svc := tenant.NewService(mockTenantRepo, mockOperationRepo, logger, tracer)
+		svc := tenant.NewService(mockTenantRepo, mockOperationRepo, logger, tracer, new(MockProvisioningMetrics))
 		op, err := svc.GetOperationStatus(ctx, tc.operationID)
 		if tc.expectError {
 			assert.Error(t, err)

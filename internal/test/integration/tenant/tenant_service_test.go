@@ -11,6 +11,7 @@ import (
 	_ "github.com/golang-migrate/migrate/v4/source/file"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/trace/noop"
 
@@ -23,6 +24,52 @@ import (
 	integrationTestUtil "github.com/ahrav/hoglet-hub/internal/test/integration/tesutil"
 	"github.com/ahrav/hoglet-hub/pkg/common/logger"
 )
+
+type MockProvisioningMetrics struct{ mock.Mock }
+
+func (m *MockProvisioningMetrics) IncProvisioningSuccess(ctx context.Context, tenantTier string, region string) {
+	m.Called(ctx, tenantTier, region)
+}
+
+func (m *MockProvisioningMetrics) IncProvisioningFailure(ctx context.Context, tenantTier string, region string, reason string) {
+	m.Called(ctx, tenantTier, region, reason)
+}
+
+func (m *MockProvisioningMetrics) ObserveProvisioningDuration(
+	ctx context.Context,
+	tenantTier string,
+	region string,
+	duration time.Duration,
+) {
+	m.Called(ctx, tenantTier, region, duration)
+}
+
+func (m *MockProvisioningMetrics) ObserveProvisioningStageDuration(
+	ctx context.Context,
+	stage string,
+	tenantTier string,
+	region string,
+	duration time.Duration,
+) {
+	m.Called(ctx, stage, tenantTier, region, duration)
+}
+
+func (m *MockProvisioningMetrics) IncTenantDeletionSuccess(ctx context.Context, tenantTier string, region string) {
+	m.Called(ctx, tenantTier, region)
+}
+
+func (m *MockProvisioningMetrics) IncTenantDeletionFailure(ctx context.Context, tenantTier string, region string, reason string) {
+	m.Called(ctx, tenantTier, region, reason)
+}
+
+func (m *MockProvisioningMetrics) ObserveTenantDeletionDuration(
+	ctx context.Context,
+	tenantTier string,
+	region string,
+	duration time.Duration,
+) {
+	m.Called(ctx, tenantTier, region, duration)
+}
 
 // setupTenantService creates a test environment with database connection
 // and tenant service for integration tests.
@@ -42,7 +89,7 @@ func setupTenantService(t *testing.T) (
 
 	log := logger.Noop()
 	tracer := noop.NewTracerProvider().Tracer("test-integration")
-	service := tenant.NewService(tenantRepo, operationRepo, log, tracer)
+	service := tenant.NewService(tenantRepo, operationRepo, log, tracer, new(MockProvisioningMetrics))
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	t.Cleanup(cancel)

@@ -54,6 +54,7 @@ type Config struct {
 	Log              *logger.Logger
 	DB               *pgxpool.Pool
 	Tracer           trace.Tracer
+	APIMetrics       mid.APIMetrics
 	TenantService    *tenantApp.Service
 	OperationService *operationApp.Service
 }
@@ -150,7 +151,7 @@ func WrapWithMiddleware(cfg Config, handler http.Handler, options ...func(opts *
 	}
 
 	// Create a middleware chain using our mid package.
-	chain := mid.GetMiddlewareChain(cfg.Log, cfg.Tracer)
+	chain := mid.GetMiddlewareChain(cfg.Log, cfg.Tracer, cfg.APIMetrics)
 
 	if len(opts.corsOrigin) > 0 {
 		chain = append(chain, func(next http.Handler) http.Handler {

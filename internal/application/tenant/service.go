@@ -157,8 +157,9 @@ type Service struct {
 	activeWorkflows map[int64]workflow.Workflow
 	workflowFactory WorkflowFactory
 
-	logger *logger.Logger
-	tracer trace.Tracer
+	logger  *logger.Logger
+	tracer  trace.Tracer
+	metrics ProvisioningMetrics
 }
 
 // NewService creates a new tenant service with the required repositories.
@@ -168,6 +169,7 @@ func NewService(
 	operationRepo operation.Repository,
 	logger *logger.Logger,
 	tracer trace.Tracer,
+	metrics ProvisioningMetrics,
 ) *Service {
 	factory := NewDefaultWorkflowFactory(tenantRepo, operationRepo, logger, tracer)
 	return &Service{
@@ -177,6 +179,7 @@ func NewService(
 		workflowFactory: factory,
 		logger:          logger.With("component", "tenant_service"),
 		tracer:          tracer,
+		metrics:         metrics,
 	}
 }
 
@@ -198,6 +201,7 @@ func NewServiceWithWorkflowFactory(
 	workflowFactory WorkflowFactory,
 	logger *logger.Logger,
 	tracer trace.Tracer,
+	metrics ProvisioningMetrics,
 ) *Service {
 	return &Service{
 		tenantRepo:      tenantRepo,
@@ -206,6 +210,7 @@ func NewServiceWithWorkflowFactory(
 		workflowFactory: workflowFactory,
 		logger:          logger.With("component", "tenant_service"),
 		tracer:          tracer,
+		metrics:         metrics,
 	}
 }
 

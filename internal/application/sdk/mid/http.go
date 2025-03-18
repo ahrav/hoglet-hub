@@ -144,9 +144,10 @@ func OtelHTTP(tracer trace.Tracer) HTTPMiddleware {
 // combining both direct HTTP middleware and converted application middleware.
 // This provides a consistent middleware stack regardless of whether using the
 // web.App framework or standard HTTP handlers.
-func GetMiddlewareChain(log *logger.Logger, tracer trace.Tracer) []HTTPMiddleware {
+func GetMiddlewareChain(log *logger.Logger, tracer trace.Tracer, metrics APIMetrics) []HTTPMiddleware {
 	return []HTTPMiddleware{
 		OtelHTTP(tracer),
+		MetricsMiddleware(metrics),
 		LoggerHTTP(log),
 		convertToHTTP(Errors(log)),
 		convertToHTTP(Panics()),
