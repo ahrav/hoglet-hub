@@ -7,10 +7,10 @@ import (
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 
-	"github.com/ahrav/hoglet-hub/internal/application/tenant"
+	"github.com/ahrav/hoglet-hub/internal/application/workflow"
 )
 
-var _ tenant.ProvisioningMetrics = (*tenantMetrics)(nil)
+var _ workflow.ProvisioningMetrics = (*tenantMetrics)(nil)
 
 type tenantMetrics struct {
 	// Provisioning metrics.

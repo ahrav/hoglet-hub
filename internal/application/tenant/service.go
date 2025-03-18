@@ -93,6 +93,7 @@ type DefaultWorkflowFactory struct {
 	operationRepo operation.Repository
 	logger        *logger.Logger
 	tracer        trace.Tracer
+	metrics       workflow.ProvisioningMetrics
 }
 
 // NewDefaultWorkflowFactory creates a new default workflow factory
@@ -101,8 +102,9 @@ func NewDefaultWorkflowFactory(
 	operationRepo operation.Repository,
 	logger *logger.Logger,
 	tracer trace.Tracer,
+	metrics workflow.ProvisioningMetrics,
 ) *DefaultWorkflowFactory {
-	return &DefaultWorkflowFactory{tenantRepo, operationRepo, logger, tracer}
+	return &DefaultWorkflowFactory{tenantRepo, operationRepo, logger, tracer, metrics}
 }
 
 // NewTenantCreationWorkflow creates a new tenant creation workflow
@@ -119,6 +121,7 @@ func (f *DefaultWorkflowFactory) NewTenantCreationWorkflow(
 		f.operationRepo,
 		f.logger,
 		f.tracer,
+		f.metrics,
 	)
 }
 
@@ -136,6 +139,7 @@ func (f *DefaultWorkflowFactory) NewTenantDeletionWorkflow(
 		f.operationRepo,
 		f.logger,
 		f.tracer,
+		f.metrics,
 	)
 }
 
@@ -159,7 +163,7 @@ type Service struct {
 
 	logger  *logger.Logger
 	tracer  trace.Tracer
-	metrics ProvisioningMetrics
+	metrics workflow.ProvisioningMetrics
 }
 
 // NewService creates a new tenant service with the required repositories.
@@ -169,9 +173,9 @@ func NewService(
 	operationRepo operation.Repository,
 	logger *logger.Logger,
 	tracer trace.Tracer,
-	metrics ProvisioningMetrics,
+	metrics workflow.ProvisioningMetrics,
 ) *Service {
-	factory := NewDefaultWorkflowFactory(tenantRepo, operationRepo, logger, tracer)
+	factory := NewDefaultWorkflowFactory(tenantRepo, operationRepo, logger, tracer, metrics)
 	return &Service{
 		tenantRepo:      tenantRepo,
 		operationRepo:   operationRepo,
@@ -201,7 +205,7 @@ func NewServiceWithWorkflowFactory(
 	workflowFactory WorkflowFactory,
 	logger *logger.Logger,
 	tracer trace.Tracer,
-	metrics ProvisioningMetrics,
+	metrics workflow.ProvisioningMetrics,
 ) *Service {
 	return &Service{
 		tenantRepo:      tenantRepo,

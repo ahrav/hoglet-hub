@@ -6,7 +6,7 @@ import (
 	"github.com/ahrav/hoglet-hub/internal/application/health"
 	"github.com/ahrav/hoglet-hub/internal/application/sdk/mid"
 	"github.com/ahrav/hoglet-hub/internal/application/security"
-	"github.com/ahrav/hoglet-hub/internal/application/tenant"
+	"github.com/ahrav/hoglet-hub/internal/application/workflow"
 )
 
 const namespace = "hoglet_hub"
@@ -15,7 +15,7 @@ const namespace = "hoglet_hub"
 // It centralizes the creation and management of metrics instances.
 type Registry struct {
 	API      mid.APIMetrics
-	Tenant   tenant.ProvisioningMetrics
+	Tenant   workflow.ProvisioningMetrics
 	Security security.SecurityMetrics
 	Health   health.HealthMetrics
 }

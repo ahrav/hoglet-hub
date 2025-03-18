@@ -29,8 +29,9 @@ type TenantCreationWorkflow struct {
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
 
-	logger *logger.Logger
-	tracer trace.Tracer
+	logger  *logger.Logger
+	tracer  trace.Tracer
+	metrics ProvisioningMetrics
 }
 
 // NewTenantCreationWorkflow creates a new workflow for tenant provisioning.
@@ -43,6 +44,7 @@ func NewTenantCreationWorkflow(
 	operationRepo operation.Repository,
 	logger *logger.Logger,
 	tracer trace.Tracer,
+	metrics ProvisioningMetrics,
 ) *TenantCreationWorkflow {
 	workflow := &TenantCreationWorkflow{
 		tenant:        t,
@@ -51,6 +53,7 @@ func NewTenantCreationWorkflow(
 		tenantRepo:    tenantRepo,
 		operationRepo: operationRepo,
 		tracer:        tracer,
+		metrics:       metrics,
 	}
 
 	// Define the workflow steps.
@@ -213,8 +216,9 @@ type TenantDeletionWorkflow struct {
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
 
-	logger *logger.Logger
-	tracer trace.Tracer
+	logger  *logger.Logger
+	tracer  trace.Tracer
+	metrics ProvisioningMetrics
 }
 
 // NewTenantDeletionWorkflow creates a new workflow for tenant removal.
@@ -227,6 +231,7 @@ func NewTenantDeletionWorkflow(
 	operationRepo operation.Repository,
 	logger *logger.Logger,
 	tracer trace.Tracer,
+	metrics ProvisioningMetrics,
 ) *TenantDeletionWorkflow {
 	workflow := &TenantDeletionWorkflow{
 		tenant:        t,
@@ -235,6 +240,7 @@ func NewTenantDeletionWorkflow(
 		tenantRepo:    tenantRepo,
 		operationRepo: operationRepo,
 		tracer:        tracer,
+		metrics:       metrics,
 	}
 
 	// Define the workflow steps
