@@ -68,11 +68,10 @@ export async function DELETE(
   return await proxyRequest(request, params.proxy, "DELETE");
 }
 
-export async function OPTIONS(
-  request: NextRequest,
-  context: { params: ProxyParams }
-): Promise<Response> {
-  const params = await context.params;
+export async function OPTIONS(context: {
+  params: ProxyParams;
+}): Promise<Response> {
+  await context.params;
 
   return new Response(null, {
     status: 204,

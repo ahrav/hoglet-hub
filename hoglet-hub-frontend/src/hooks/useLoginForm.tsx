@@ -1,8 +1,7 @@
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useRouter } from "next/navigation";
 
-// Define types
 export interface LoginFormData {
   email: string;
   password: string;
@@ -18,7 +17,7 @@ export function useLoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleLogin = async (data: LoginFormData): Promise<void> => {
+  const handleLogin = async (): Promise<void> => {
     setIsLoading(true);
     setError(null);
 
