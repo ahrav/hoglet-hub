@@ -33,14 +33,6 @@ type OperationResult struct {
 	TenantID    int64 // Zero value (0) for operations that don't create tenants
 }
 
-// WorkflowType defines the type of tenant operation.
-type WorkflowType string
-
-const (
-	WorkflowTypeCreate WorkflowType = "create"
-	WorkflowTypeDelete WorkflowType = "delete"
-)
-
 // WorkflowFactory creates workflows for tenant operations.
 //
 // This factory pattern provides several important architectural benefits:
@@ -51,11 +43,11 @@ const (
 type WorkflowFactory interface {
 	// NewWorkflow creates the appropriate workflow based on the operation type.
 	NewWorkflow(
-		opType WorkflowType,
+		opType workflow.OperationType,
 		t *tenant.Tenant,
 		tenantID int64,
 		op *operation.Operation,
-	) workflow.Workflow
+	) (workflow.Workflow, error)
 }
 
 // DefaultWorkflowFactory is the default implementation of WorkflowFactory.
@@ -74,7 +66,7 @@ type DefaultWorkflowFactory struct {
 	metrics       workflow.ProvisioningMetrics
 }
 
-// NewDefaultWorkflowFactory creates a new default workflow factory
+// NewDefaultWorkflowFactory creates a new default workflow factory.
 func NewDefaultWorkflowFactory(
 	tenantRepo tenant.Repository,
 	operationRepo operation.Repository,
@@ -97,47 +89,26 @@ func NewDefaultWorkflowFactory(
 // the DefaultWorkflowFactory. It creates and returns the correct workflow
 // implementation based on the provided operation type.
 func (f *DefaultWorkflowFactory) NewWorkflow(
-	opType WorkflowType,
+	opType workflow.OperationType,
 	t *tenant.Tenant,
 	tenantID int64,
 	op *operation.Operation,
-) workflow.Workflow {
-	switch opType {
-	case WorkflowTypeCreate:
-		return workflow.NewTenantCreationWorkflow(
-			t,
-			tenantID,
-			op,
-			f.tenantRepo,
-			f.operationRepo,
-			f.logger,
-			f.tracer,
-			f.metrics,
-		)
-	case WorkflowTypeDelete:
-		return workflow.NewTenantDeletionWorkflow(
-			t,
-			tenantID,
-			op,
-			f.tenantRepo,
-			f.operationRepo,
-			f.logger,
-			f.tracer,
-			f.metrics,
-		)
-	default:
-		// TODO: revisit
-		return nil
-	}
+) (workflow.Workflow, error) {
+	return workflow.NewTenantOperationWorkflow(
+		opType,
+		t,
+		tenantID,
+		op,
+		f.tenantRepo,
+		f.operationRepo,
+		f.logger,
+		f.tracer,
+		f.metrics,
+	)
 }
 
 // Service provides tenant-related application services.
 // It orchestrates tenant lifecycle operations and manages the associated workflows.
-//
-// This service follows the "accept interfaces, return concrete types" principle by:
-// 1. Accepting interfaces (repositories, factories) for flexibility and testability
-// 2. Returning concrete result types (CreateResult, DeleteResult) to clients
-// 3. Never exposing internal workflow interfaces to external consumers
 //
 // The service maintains internal references to workflows via the workflow.Workflow
 // interface, but these are an implementation detail hidden from API clients.
@@ -178,15 +149,7 @@ func NewService(
 // NewServiceWithWorkflowFactory creates a new tenant service with a custom workflow factory.
 //
 // This constructor supports the Strategy pattern by allowing different workflow
-// creation strategies to be injected. This is valuable in several scenarios:
-//
-// 1. Different cloud providers might require different provisioning workflows
-// 2. Development/staging environments may use simplified workflows
-// 3. Different regions might have specialized compliance or infrastructure requirements
-// 4. Future tenant tiers might need differentiated provisioning strategies
-//
-// This flexibility makes the system more adaptable to changing business requirements
-// without requiring modifications to the core tenant service.
+// creation strategies to be injected.
 func NewServiceWithWorkflowFactory(
 	tenantRepo tenant.Repository,
 	operationRepo operation.Repository,
@@ -270,7 +233,7 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*OperationRe
 	}
 	span.AddEvent("operation created")
 
-	return s.executeWorkflow(ctx, WorkflowTypeCreate, newTenant, tenantID, newOperation, logger)
+	return s.executeWorkflow(ctx, workflow.OperationTypeCreate, newTenant, tenantID, newOperation, logger)
 }
 
 // Delete initiates tenant deletion and returns operation information.
@@ -304,7 +267,7 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*OperationResult,
 	}
 	span.AddEvent("operation created")
 
-	return s.executeWorkflow(ctx, WorkflowTypeDelete, t, tenantID, newOperation, logger)
+	return s.executeWorkflow(ctx, workflow.OperationTypeDelete, t, tenantID, newOperation, logger)
 }
 
 // executeWorkflow handles the common workflow execution pattern
@@ -312,7 +275,7 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*OperationResult,
 // TODO: Extract some of these params into a struct.
 func (s *Service) executeWorkflow(
 	ctx context.Context,
-	wkflwType WorkflowType,
+	wkflwType workflow.OperationType,
 	t *tenant.Tenant,
 	tenantID int64,
 	op *operation.Operation,
@@ -339,7 +302,12 @@ func (s *Service) executeWorkflow(
 
 	op.ID = operationID
 
-	tenantWorkflow := s.workflowFactory.NewWorkflow(wkflwType, t, tenantID, op)
+	tenantWorkflow, err := s.workflowFactory.NewWorkflow(wkflwType, t, tenantID, op)
+	if err != nil {
+		span.RecordError(err)
+		span.SetStatus(codes.Error, "error creating workflow")
+		return nil, fmt.Errorf("failed to create workflow for tenant (%d): %w", tenantID, err)
+	}
 	span.AddEvent(string(wkflwType) + " workflow created")
 
 	s.mu.Lock()

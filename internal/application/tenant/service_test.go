@@ -210,13 +210,13 @@ func (m *MockWorkflow) SendResult(result workflow.WorkflowResult) { m.resultChan
 type MockWorkflowFactory struct{ mock.Mock }
 
 func (m *MockWorkflowFactory) NewWorkflow(
-	opType tenant.WorkflowType,
+	opType workflow.OperationType,
 	t *tenantDomain.Tenant,
 	tenantID int64,
 	op *operation.Operation,
-) workflow.Workflow {
+) (workflow.Workflow, error) {
 	args := m.Called(opType, t, tenantID, op)
-	return args.Get(0).(workflow.Workflow)
+	return args.Get(0).(workflow.Workflow), args.Error(1)
 }
 
 type MockProvisioningMetrics struct{ mock.Mock }
@@ -368,7 +368,7 @@ func TestServiceCreate(t *testing.T) {
 
 				// Set up the factory to return our controlled workflow.
 				mockWorkflowFactory.On("NewWorkflow",
-					tenant.WorkflowTypeCreate,
+					workflow.OperationTypeCreate,
 					mock.AnythingOfType("*tenant.Tenant"),
 					mock.AnythingOfType("int64"),
 					mock.AnythingOfType("*operation.Operation")).
@@ -497,7 +497,7 @@ func TestServiceDelete(t *testing.T) {
 
 				// Set up the factory to return our controlled workflow.
 				mockWorkflowFactory.On("NewWorkflow",
-					tenant.WorkflowTypeDelete,
+					workflow.OperationTypeDelete,
 					mock.AnythingOfType("*tenant.Tenant"),
 					mock.AnythingOfType("int64"),
 					mock.AnythingOfType("*operation.Operation")).
