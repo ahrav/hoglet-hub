@@ -115,6 +115,7 @@ func (f *DefaultWorkflowFactory) NewWorkflow(
 type Service struct {
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
+
 	// Track active workflows for monitoring and management.
 	mu              sync.RWMutex
 	activeWorkflows map[int64]workflow.Workflow
@@ -233,7 +234,14 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*OperationRe
 	}
 	span.AddEvent("operation created")
 
-	return s.executeWorkflow(ctx, workflow.OperationTypeCreate, newTenant, tenantID, newOperation, logger)
+	p := workflowExecutionParams{
+		OperationType: workflow.OperationTypeCreate,
+		Tenant:        newTenant,
+		TenantID:      tenantID,
+		Operation:     newOperation,
+	}
+
+	return s.executeWorkflow(ctx, p, logger)
 }
 
 // Delete initiates tenant deletion and returns operation information.
@@ -267,48 +275,64 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*OperationResult,
 	}
 	span.AddEvent("operation created")
 
-	return s.executeWorkflow(ctx, workflow.OperationTypeDelete, t, tenantID, newOperation, logger)
+	p := workflowExecutionParams{
+		OperationType: workflow.OperationTypeDelete,
+		Tenant:        t,
+		TenantID:      tenantID,
+		Operation:     newOperation,
+	}
+
+	return s.executeWorkflow(ctx, p, logger)
+}
+
+// workflowExecutionParams encapsulates the parameters needed to execute a workflow.
+type workflowExecutionParams struct {
+	OperationType workflow.OperationType
+	Tenant        *tenant.Tenant
+	TenantID      int64
+	Operation     *operation.Operation
 }
 
 // executeWorkflow handles the common workflow execution pattern
 // This extracts the shared logic from Create and Delete methods
-// TODO: Extract some of these params into a struct.
 func (s *Service) executeWorkflow(
 	ctx context.Context,
-	wkflwType workflow.OperationType,
-	t *tenant.Tenant,
-	tenantID int64,
-	op *operation.Operation,
+	params workflowExecutionParams,
 	logger *logger.LoggerContext,
 ) (*OperationResult, error) {
-	logger.Add("operation_type", string(wkflwType))
-	logger.Add("tenant_id", tenantID)
+	logger.Add("operation_type", string(params.OperationType))
+	logger.Add("tenant_id", params.TenantID)
 	logger.Debug(ctx, "executing workflow")
 
-	ctx, span := s.tracer.Start(ctx, "tenant."+string(wkflwType),
-		trace.WithAttributes(attribute.Int64("tenant_id", tenantID)))
+	ctx, span := s.tracer.Start(ctx, "tenant."+string(params.OperationType),
+		trace.WithAttributes(attribute.Int64("tenant_id", params.TenantID)))
 	defer span.End()
 
-	operationID, err := s.operationRepo.Create(ctx, op)
+	operationID, err := s.operationRepo.Create(ctx, params.Operation)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "error persisting operation")
-		return nil, fmt.Errorf("failed to persist operation for tenant (%d): %w", tenantID, err)
+		return nil, fmt.Errorf("failed to persist operation for tenant (%d): %w", params.TenantID, err)
 	}
 	logger.Add("operation_id", operationID)
 	span.SetAttributes(attribute.Int64("operation_id", operationID))
 	span.AddEvent("operation persisted")
 	logger.Info(ctx, "operation created")
 
-	op.ID = operationID
+	params.Operation.ID = operationID
 
-	tenantWorkflow, err := s.workflowFactory.NewWorkflow(wkflwType, t, tenantID, op)
+	tenantWorkflow, err := s.workflowFactory.NewWorkflow(
+		params.OperationType,
+		params.Tenant,
+		params.TenantID,
+		params.Operation,
+	)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "error creating workflow")
-		return nil, fmt.Errorf("failed to create workflow for tenant (%d): %w", tenantID, err)
+		return nil, fmt.Errorf("failed to create workflow for tenant (%d): %w", params.TenantID, err)
 	}
-	span.AddEvent(string(wkflwType) + " workflow created")
+	span.AddEvent(string(params.OperationType) + " workflow created")
 
 	s.mu.Lock()
 	s.activeWorkflows[operationID] = tenantWorkflow
@@ -327,11 +351,11 @@ func (s *Service) executeWorkflow(
 	// Set up goroutine to handle workflow completion and cleanup.
 	go s.handleWorkflowCompletion(backgroundCtx, operationID, tenantWorkflow)
 
-	logger.Info(ctx, "async "+string(wkflwType)+" workflow started")
-	span.AddEvent("async " + string(wkflwType) + " workflow started")
-	span.SetStatus(codes.Ok, "tenant "+string(wkflwType)+" process started")
+	logger.Info(ctx, "async "+string(params.OperationType)+" workflow started")
+	span.AddEvent("async " + string(params.OperationType) + " workflow started")
+	span.SetStatus(codes.Ok, "tenant "+string(params.OperationType)+" process started")
 
-	return &OperationResult{OperationID: operationID, TenantID: tenantID}, nil
+	return &OperationResult{OperationID: operationID, TenantID: params.TenantID}, nil
 }
 
 // GetOperationStatus retrieves the current status of an operation.
