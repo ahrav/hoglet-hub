@@ -95,17 +95,16 @@ func (f *DefaultWorkflowFactory) NewWorkflow(
 	tenantID int64,
 	op *operation.Operation,
 ) (workflow.Workflow, error) {
-	return workflow.NewTenantOperationWorkflow(
-		opType,
-		t,
-		tenantID,
-		op,
-		f.tenantRepo,
-		f.operationRepo,
-		f.logger,
-		f.tracer,
-		f.metrics,
-	)
+	cfg := workflow.TenantOperationConfig{
+		OperationType: opType,
+		Tenant:        t,
+		TenantID:      tenantID,
+		Operation:     op,
+		TenantRepo:    f.tenantRepo,
+		OperationRepo: f.operationRepo,
+	}
+
+	return workflow.NewTenantOperationWorkflow(cfg, f.logger, f.tracer, f.metrics)
 }
 
 // Service provides tenant-related application services.

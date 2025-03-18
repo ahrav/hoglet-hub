@@ -49,26 +49,39 @@ type TenantOperationWorkflow struct {
 	metrics ProvisioningMetrics
 }
 
+// TenantOperationConfig contains the configuration parameters for a tenant operation workflow.
+// This struct encapsulates the tenant-specific data and repositories needed for the workflow.
+type TenantOperationConfig struct {
+	// Operation type (create/delete)
+	OperationType OperationType
+
+	// Tenant information
+	Tenant   *tenant.Tenant
+	TenantID int64
+
+	// Operation tracking
+	Operation *operation.Operation
+
+	// Repositories
+	TenantRepo    tenant.Repository
+	OperationRepo operation.Repository
+}
+
 // NewTenantOperationWorkflow creates a new workflow for tenant operations (create/delete).
 // This factory function dynamically constructs the appropriate workflow based on the operation type.
 func NewTenantOperationWorkflow(
-	opType OperationType,
-	t *tenant.Tenant,
-	tenantID int64,
-	op *operation.Operation,
-	tenantRepo tenant.Repository,
-	operationRepo operation.Repository,
+	cfg TenantOperationConfig,
 	logger *logger.Logger,
 	tracer trace.Tracer,
 	metrics ProvisioningMetrics,
 ) (*TenantOperationWorkflow, error) {
 	workflow := &TenantOperationWorkflow{
-		operationType: opType,
-		tenant:        t,
-		tenantID:      tenantID,
-		operation:     op,
-		tenantRepo:    tenantRepo,
-		operationRepo: operationRepo,
+		operationType: cfg.OperationType,
+		tenant:        cfg.Tenant,
+		tenantID:      cfg.TenantID,
+		operation:     cfg.Operation,
+		tenantRepo:    cfg.TenantRepo,
+		operationRepo: cfg.OperationRepo,
 		tracer:        tracer,
 		metrics:       metrics,
 	}
@@ -77,7 +90,7 @@ func NewTenantOperationWorkflow(
 	var steps []Step
 	var componentName string // Used for tracing and logging.
 
-	switch opType {
+	switch cfg.OperationType {
 	case OperationTypeCreate:
 		componentName = "tenant_creation_workflow"
 		steps = []Step{
@@ -137,16 +150,16 @@ func NewTenantOperationWorkflow(
 			},
 		}
 	default:
-		return nil, fmt.Errorf("HOW! invalid operation type: %s", opType)
+		return nil, fmt.Errorf("HOW! invalid operation type: %s", cfg.OperationType)
 	}
 
 	workflow.BaseWorkflow = NewBaseWorkflow(steps)
 	workflow.logger = logger.With(
 		"component", componentName,
-		"tenant_id", tenantID,
-		"operation_id", op.ID,
-		"tenant_name", t.Name,
-		"region", t.Region,
+		"tenant_id", cfg.TenantID,
+		"operation_id", cfg.Operation.ID,
+		"tenant_name", cfg.Tenant.Name,
+		"region", cfg.Tenant.Region,
 		"number_of_steps", len(steps),
 	)
 
