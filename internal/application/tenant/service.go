@@ -309,6 +309,7 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*OperationResult,
 
 // executeWorkflow handles the common workflow execution pattern
 // This extracts the shared logic from Create and Delete methods
+// TODO: Extract some of these params into a struct.
 func (s *Service) executeWorkflow(
 	ctx context.Context,
 	wkflwType WorkflowType,
@@ -362,10 +363,7 @@ func (s *Service) executeWorkflow(
 	span.AddEvent("async " + string(wkflwType) + " workflow started")
 	span.SetStatus(codes.Ok, "tenant "+string(wkflwType)+" process started")
 
-	return &OperationResult{
-		OperationID: operationID,
-		TenantID:    tenantID,
-	}, nil
+	return &OperationResult{OperationID: operationID, TenantID: tenantID}, nil
 }
 
 // GetOperationStatus retrieves the current status of an operation.
