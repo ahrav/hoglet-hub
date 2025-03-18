@@ -12,9 +12,7 @@ import (
 
 // TenantHandler implements the tenant-related API endpoints by translating
 // HTTP requests to application service calls and mapping responses back to HTTP.
-type TenantHandler struct {
-	tenantService *appTenant.Service
-}
+type TenantHandler struct{ tenantService *appTenant.Service }
 
 // NewTenantHandler creates a new tenant handler with the provided tenant service.
 // The tenant service is used to execute the business logic for tenant operations.
@@ -106,7 +104,7 @@ func (h *TenantHandler) CreateTenant(ctx context.Context, req server.CreateTenan
 			return server.CreateTenant500JSONResponse{
 				Error:   "internal_error",
 				Message: "An internal error occurred",
-				Details: &map[string]interface{}{
+				Details: &map[string]any{
 					"error": err.Error(),
 				},
 			}, nil
@@ -128,7 +126,10 @@ func (h *TenantHandler) CreateTenant(ctx context.Context, req server.CreateTenan
 // DeleteTenant handles tenant deletion requests by delegating to the tenant service
 // and mapping the result to appropriate HTTP responses. It initiates an asynchronous
 // deletion operation and returns information about the operation.
-func (h *TenantHandler) DeleteTenant(ctx context.Context, req server.DeleteTenantRequestObject) (server.DeleteTenantResponseObject, error) {
+func (h *TenantHandler) DeleteTenant(
+	ctx context.Context,
+	req server.DeleteTenantRequestObject,
+) (server.DeleteTenantResponseObject, error) {
 	result, err := h.tenantService.Delete(ctx, req.TenantId)
 	if err != nil {
 		switch {
@@ -141,7 +142,7 @@ func (h *TenantHandler) DeleteTenant(ctx context.Context, req server.DeleteTenan
 			return server.DeleteTenant500JSONResponse{
 				Error:   "internal_error",
 				Message: "An internal error occurred",
-				Details: &map[string]interface{}{
+				Details: &map[string]any{
 					"error": err.Error(),
 				},
 			}, nil

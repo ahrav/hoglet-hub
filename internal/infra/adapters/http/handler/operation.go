@@ -15,16 +15,12 @@ import (
 // OperationHandler implements the operation-related API endpoints.
 // It serves as the HTTP interface layer for operation management functionalities,
 // translating between HTTP requests/responses and application service calls.
-type OperationHandler struct {
-	operationService *appOperation.Service
-}
+type OperationHandler struct{ operationService *appOperation.Service }
 
 // NewOperationHandler creates a new operation handler with the given operation service.
 // The operation service is required to handle business logic operations.
 func NewOperationHandler(operationService *appOperation.Service) *OperationHandler {
-	return &OperationHandler{
-		operationService: operationService,
-	}
+	return &OperationHandler{operationService: operationService}
 }
 
 // GetOperation handles HTTP requests for retrieving operation details by ID.
@@ -73,8 +69,6 @@ func (h *OperationHandler) GetOperation(ctx context.Context, req server.GetOpera
 		links["tenant"] = fmt.Sprintf("/tenants/%d", *op.TenantID)
 	}
 
-	opType := op.Type.String()
-
 	var createdBy *openapi_types.Email
 	if op.CreatedBy != nil {
 		email := openapi_types.Email(*op.CreatedBy)
@@ -84,7 +78,7 @@ func (h *OperationHandler) GetOperation(ctx context.Context, req server.GetOpera
 	return server.GetOperation200JSONResponse{
 		Links:         links,
 		Id:            op.ID,
-		OperationType: opType,
+		OperationType: op.Type.String(),
 		Status:        status,
 		TenantId:      op.TenantID,
 		CreatedAt:     op.CreatedAt,
