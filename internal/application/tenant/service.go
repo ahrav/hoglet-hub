@@ -61,9 +61,10 @@ type WorkflowFactory interface {
 type DefaultWorkflowFactory struct {
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
-	logger        *logger.Logger
-	tracer        trace.Tracer
-	metrics       workflow.ProvisioningMetrics
+
+	logger  *logger.Logger
+	tracer  trace.Tracer
+	metrics workflow.ProvisioningMetrics
 }
 
 // NewDefaultWorkflowFactory creates a new default workflow factory.
