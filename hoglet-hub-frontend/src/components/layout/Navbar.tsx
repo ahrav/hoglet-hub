@@ -6,6 +6,13 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "../../contexts/AuthContext";
 import ThemeToggle from "../ThemeToggle";
 
+// Navigation constants
+const BRAND_NAME = "Hoglet Hub";
+const LOGIN_TEXT = "Login";
+const LOGOUT_TEXT = "Logout";
+const LOGOUT_LOADING_TEXT = "Logging out...";
+const MENU_TOGGLE_LABEL = "Open main menu";
+
 interface NavItem {
   href: string;
   label: string;
@@ -59,9 +66,9 @@ export default function Navbar() {
             <Link
               href="/"
               className="flex items-center"
-              aria-label="Hoglet Hub home"
+              aria-label={`${BRAND_NAME} home`}
             >
-              <span className="text-xl font-bold">Hoglet Hub</span>
+              <span className="text-xl font-bold">{BRAND_NAME}</span>
             </Link>
           </div>
 
@@ -93,7 +100,7 @@ export default function Navbar() {
                   ${isLoggingOut ? "opacity-70 cursor-not-allowed" : ""}`}
                 aria-busy={isLoggingOut}
               >
-                {isLoggingOut ? "Logging out..." : "Logout"}
+                {isLoggingOut ? LOGOUT_LOADING_TEXT : LOGOUT_TEXT}
               </button>
             ) : (
               <Link
@@ -107,7 +114,7 @@ export default function Navbar() {
                   transition-colors`}
                 aria-current={pathname === "/login" ? "page" : undefined}
               >
-                Login
+                {LOGIN_TEXT}
               </Link>
             )}
 
@@ -123,7 +130,7 @@ export default function Navbar() {
               aria-expanded={isMenuOpen}
               onClick={toggleMenu}
             >
-              <span className="sr-only">Open main menu</span>
+              <span className="sr-only">{MENU_TOGGLE_LABEL}</span>
               {/* Icon for menu open/close */}
               <svg
                 className={`h-6 w-6 ${isMenuOpen ? "hidden" : "block"}`}
@@ -196,7 +203,7 @@ export default function Navbar() {
                 ${isLoggingOut ? "opacity-70 cursor-not-allowed" : ""}`}
               aria-busy={isLoggingOut}
             >
-              {isLoggingOut ? "Logging out..." : "Logout"}
+              {isLoggingOut ? LOGOUT_LOADING_TEXT : LOGOUT_TEXT}
             </button>
           ) : (
             <Link
@@ -211,7 +218,7 @@ export default function Navbar() {
               aria-current={pathname === "/login" ? "page" : undefined}
               onClick={() => setIsMenuOpen(false)}
             >
-              Login
+              {LOGIN_TEXT}
             </Link>
           )}
 

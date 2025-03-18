@@ -11,6 +11,13 @@ import PageLayout from "../components/layout/PageLayout";
 // TODO: Try to figure out a real solution... Jerbilsss
 import "../api/config";
 
+// Metadata constants
+const APP_NAME = "Hoglet Hub";
+const APP_DESCRIPTION =
+  "Internal tenant provisioning system for managing and provisioning tenants across multiple regions";
+const PAGE_TITLE_TEMPLATE = "%s | Hoglet Hub";
+const DEFAULT_TITLE = "Hoglet Hub - Tenant Provisioning";
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -23,11 +30,10 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: {
-    default: "Hoglet Hub - Tenant Provisioning",
-    template: "%s | Hoglet Hub",
+    default: DEFAULT_TITLE,
+    template: PAGE_TITLE_TEMPLATE,
   },
-  description:
-    "Internal tenant provisioning system for managing and provisioning tenants across multiple regions",
+  description: APP_DESCRIPTION,
   viewport: "width=device-width, initial-scale=1",
   robots: "noindex, nofollow", // Since it's an internal tool
 };

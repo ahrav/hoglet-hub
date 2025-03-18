@@ -2,6 +2,20 @@ import React from "react";
 import { useForm } from "react-hook-form";
 import { useLoginForm, LoginFormData } from "../hooks/useLoginForm";
 
+// Form constants
+const FORM_TITLE = "Sign in to Hoglet Hub";
+const EMAIL_LABEL = "Email Address";
+const PASSWORD_LABEL = "Password";
+const EMAIL_REQUIRED_ERROR = "Email is required";
+const EMAIL_PATTERN_ERROR = "Please enter a valid email";
+const PASSWORD_REQUIRED_ERROR = "Password is required";
+const SIGNIN_BUTTON_TEXT = "Sign in";
+const SIGNIN_LOADING_TEXT = "Signing in...";
+const DEVELOPMENT_MODE_TEXT = "Development Mode";
+const DEV_MODE_DESCRIPTION =
+  "For development purposes, you can use any credentials to log in.";
+const EMAIL_PATTERN = /\S+@\S+\.\S+/;
+
 export default function LoginForm(): React.ReactElement {
   const { handleLogin, error, isLoading } = useLoginForm();
 
@@ -22,7 +36,7 @@ export default function LoginForm(): React.ReactElement {
           id="login-heading"
           className="text-2xl font-bold text-center text-gray-800 dark:text-white mb-8"
         >
-          Sign in to Hoglet Hub
+          {FORM_TITLE}
         </h2>
 
         <div>
@@ -31,7 +45,7 @@ export default function LoginForm(): React.ReactElement {
             htmlFor="email"
             className="block text-sm font-medium text-gray-700 dark:text-gray-200"
           >
-            Email Address
+            {EMAIL_LABEL}
           </label>
           <input
             id="email"
@@ -41,10 +55,10 @@ export default function LoginForm(): React.ReactElement {
             aria-required="true"
             aria-invalid={!!errors.email}
             {...register("email", {
-              required: "Email is required",
+              required: EMAIL_REQUIRED_ERROR,
               pattern: {
-                value: /\S+@\S+\.\S+/,
-                message: "Please enter a valid email",
+                value: EMAIL_PATTERN,
+                message: EMAIL_PATTERN_ERROR,
               },
             })}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
@@ -62,7 +76,7 @@ export default function LoginForm(): React.ReactElement {
             htmlFor="password"
             className="block text-sm font-medium text-gray-700 dark:text-gray-200"
           >
-            Password
+            {PASSWORD_LABEL}
           </label>
           <input
             id="password"
@@ -72,7 +86,7 @@ export default function LoginForm(): React.ReactElement {
             aria-required="true"
             aria-invalid={!!errors.password}
             {...register("password", {
-              required: "Password is required",
+              required: PASSWORD_REQUIRED_ERROR,
             })}
             className="mt-1 block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
           />
@@ -100,7 +114,7 @@ export default function LoginForm(): React.ReactElement {
             aria-busy={isLoading}
             className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:bg-blue-300"
           >
-            {isLoading ? "Signing in..." : "Sign in"}
+            {isLoading ? SIGNIN_LOADING_TEXT : SIGNIN_BUTTON_TEXT}
           </button>
         </div>
       </form>
@@ -112,14 +126,12 @@ export default function LoginForm(): React.ReactElement {
           </div>
           <div className="relative flex justify-center text-sm">
             <span className="px-2 bg-white text-gray-500">
-              Development Mode
+              {DEVELOPMENT_MODE_TEXT}
             </span>
           </div>
         </div>
         <div className="mt-6 text-center text-sm text-gray-500">
-          <p>
-            For development purposes, you can use any credentials to log in.
-          </p>
+          <p>{DEV_MODE_DESCRIPTION}</p>
         </div>
       </div>
     </div>

@@ -3,12 +3,20 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
-import { DashboardCard, DashboardCardProps } from "../../components/DashboardCard";
+import {
+  DashboardCard,
+  DashboardCardProps,
+} from "../../components/DashboardCard";
 
 // Page constants
 const PAGE_TITLE = "Dashboard";
 const ACTIVITY_SECTION_TITLE = "Recent Activity";
-const ACTIVITY_PLACEHOLDER = "Activity feed will be available in a future update. Stay tuned!";
+const ACTIVITY_PLACEHOLDER =
+  "Activity feed will be available in a future update. Stay tuned!";
+const LOADING_MESSAGE = "Loading...";
+const LOADING_CONTAINER_CLASSES =
+  "flex justify-center items-center min-h-screen";
+const LOADING_TEXT_CLASSES = "text-xl text-gray-600";
 
 // Dashboard cards data
 const DASHBOARD_CARDS: DashboardCardProps[] = [
@@ -81,8 +89,8 @@ export default function DashboardPage(): React.ReactElement {
   // Show loading state while checking authentication
   if (isCheckingAuth) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading...</div>
+      <div className={LOADING_CONTAINER_CLASSES}>
+        <div className={LOADING_TEXT_CLASSES}>{LOADING_MESSAGE}</div>
       </div>
     );
   }
@@ -107,9 +115,7 @@ export default function DashboardPage(): React.ReactElement {
         <h2 className="text-xl font-semibold mb-4 text-blue-800">
           {ACTIVITY_SECTION_TITLE}
         </h2>
-        <p className="text-gray-600">
-          {ACTIVITY_PLACEHOLDER}
-        </p>
+        <p className="text-gray-600">{ACTIVITY_PLACEHOLDER}</p>
       </section>
     </main>
   );

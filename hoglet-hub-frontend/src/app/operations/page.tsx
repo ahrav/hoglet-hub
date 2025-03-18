@@ -6,9 +6,14 @@ import { useRouter } from "next/navigation";
 import { useOperationsApi } from "../../hooks/useOperationsApi";
 import OperationDetails from "../../components/OperationDetails";
 
+// Page constants
 const PAGE_TITLE = "View Operations";
 const LOOKUP_SECTION_TITLE = "Lookup an Operation";
 const EMPTY_STATE_MESSAGE = "Enter an operation ID to view its details";
+const LOADING_MESSAGE = "Loading...";
+const BUTTON_TEXT = "View";
+const INPUT_PLACEHOLDER = "Enter Operation ID";
+const LOADING_STATE_CLASSES = "text-xl text-blue-600";
 
 export default function OperationsPage(): React.ReactElement {
   const { isAuthenticated } = useAuth();
@@ -36,7 +41,7 @@ export default function OperationsPage(): React.ReactElement {
   if (isCheckingAuth) {
     return (
       <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl text-blue-600">Loading...</div>
+        <div className={LOADING_STATE_CLASSES}>{LOADING_MESSAGE}</div>
       </div>
     );
   }
@@ -60,7 +65,7 @@ export default function OperationsPage(): React.ReactElement {
             type="text"
             value={operationId}
             onChange={(e) => setOperationId(e.target.value)}
-            placeholder="Enter Operation ID"
+            placeholder={INPUT_PLACEHOLDER}
             className="flex-grow px-4 py-2 border border-blue-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-blue-900 placeholder-blue-400"
             aria-label="Operation ID"
           />
@@ -70,7 +75,7 @@ export default function OperationsPage(): React.ReactElement {
             className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:bg-gray-400 font-medium transition-colors duration-200"
             aria-busy={isLoading}
           >
-            {isLoading ? "Loading..." : "View"}
+            {isLoading ? LOADING_MESSAGE : BUTTON_TEXT}
           </button>
         </form>
 

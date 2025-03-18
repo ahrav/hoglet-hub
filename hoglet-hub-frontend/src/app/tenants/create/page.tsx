@@ -5,6 +5,13 @@ import TenantCreateForm from "../../../components/TenantCreateForm";
 import { useAuth } from "../../../contexts/AuthContext";
 import { useRouter } from "next/navigation";
 
+// Page constants
+const PAGE_TITLE = "Create New Tenant";
+const LOADING_MESSAGE = "Loading...";
+const LOADING_CONTAINER_CLASSES =
+  "flex justify-center items-center min-h-screen";
+const LOADING_TEXT_CLASSES = "text-xl text-gray-600";
+
 export default function CreateTenantPage(): React.ReactElement {
   const { isAuthenticated } = useAuth();
   const router = useRouter();
@@ -20,8 +27,8 @@ export default function CreateTenantPage(): React.ReactElement {
 
   if (isCheckingAuth) {
     return (
-      <div className="flex justify-center items-center min-h-screen">
-        <div className="text-xl text-gray-600">Loading...</div>
+      <div className={LOADING_CONTAINER_CLASSES}>
+        <div className={LOADING_TEXT_CLASSES}>{LOADING_MESSAGE}</div>
       </div>
     );
   }
@@ -29,9 +36,7 @@ export default function CreateTenantPage(): React.ReactElement {
   return (
     <div className="flex flex-col items-center">
       <div className="w-full max-w-3xl">
-        <h1 className="text-3xl font-bold mb-8 text-center">
-          Create New Tenant
-        </h1>
+        <h1 className="text-3xl font-bold mb-8 text-center">{PAGE_TITLE}</h1>
         <TenantCreateForm />
       </div>
     </div>
