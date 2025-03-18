@@ -1,8 +1,26 @@
+import React from "react";
 import Link from "next/link";
+import { FeatureCard } from "../components/FeatureCard";
 
-export default function Home() {
+export const metadata = {
+  title: 'Hoglet Hub - Internal Management Platform',
+  description: 'Our internal platform for provisioning and managing tenants across multiple regions.'
+};
+
+// TODO: Move this to proper API service once added to OpenAPI spec
+async function getSystemStatus() {
+  // Temporary mock implementation
+  return {
+    isOperational: true,
+    message: "All systems operational"
+  };
+}
+
+export default async function Home(): Promise<React.ReactElement> {
+  const status = await getSystemStatus();
+
   return (
-    <div className="flex flex-col items-center justify-center py-12">
+    <main className="flex flex-col items-center justify-center py-12">
       <h1 className="text-4xl font-bold text-center mb-6">
         Welcome to Hoglet Hub
       </h1>
@@ -11,49 +29,34 @@ export default function Home() {
         multiple regions.
       </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
-        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-          <h2 className="text-2xl font-semibold mb-3 text-blue-600">
-            Create New Tenant
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Provision a new tenant instance in your preferred region with
-            customizable settings.
-          </p>
-          <Link
-            href="/tenants/create"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-          >
-            Get Started
-          </Link>
-        </div>
+      <section className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-4xl">
+        <FeatureCard
+          title="Create New Tenant"
+          description="Provision a new tenant instance in your preferred region with customizable settings."
+          linkHref="/tenants/create"
+          linkText="Get Started"
+        />
 
-        <div className="bg-white p-6 rounded-lg shadow-md hover:shadow-lg transition-shadow">
-          <h2 className="text-2xl font-semibold mb-3 text-blue-600">
-            Monitor Operations
-          </h2>
-          <p className="text-gray-600 mb-4">
-            Track the status of ongoing operations and view detailed execution
-            history.
-          </p>
-          <Link
-            href="/operations"
-            className="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-md transition-colors"
-          >
-            View Operations
-          </Link>
-        </div>
-      </div>
+        <FeatureCard
+          title="Monitor Operations"
+          description="Track the status of ongoing operations and view detailed execution history."
+          linkHref="/operations"
+          linkText="View Operations"
+        />
+      </section>
 
-      <div className="mt-12 bg-blue-50 p-6 rounded-lg max-w-4xl">
+      <section aria-label="System Status" className="mt-12 bg-blue-50 p-6 rounded-lg max-w-4xl">
         <h2 className="text-2xl font-semibold mb-3 text-blue-600">
           System Status
         </h2>
         <div className="flex items-center">
-          <div className="w-3 h-3 bg-green-500 rounded-full mr-2"></div>
-          <p className="text-gray-700">All systems operational</p>
+          <div
+            className={`w-3 h-3 ${status.isOperational ? 'bg-green-500' : 'bg-red-500'} rounded-full mr-2`}
+            aria-hidden="true"
+          ></div>
+          <p className="text-gray-700">{status.message}</p>
         </div>
-      </div>
-    </div>
+      </section>
+    </main>
   );
 }
