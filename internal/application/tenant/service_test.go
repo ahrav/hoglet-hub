@@ -186,17 +186,6 @@ func (m *MockWorkflow) ResultChan() <-chan workflow.WorkflowResult { return m.re
 // Helper method to let the test inject results.
 func (m *MockWorkflow) SendResult(result workflow.WorkflowResult) { m.resultChan <- result }
 
-// MockWorkflowFactory is a testify mock for WorkflowFactory.
-//
-// This mock factory is a key component in our testing strategy:
-// 1. It allows us to control workflow creation in tests
-// 2. We can return MockWorkflow instances configured with TestMode()
-// 3. This gives us full control over the asynchronous behavior
-//
-// By using this factory in tests, we transform the asynchronous workflow
-// into a synchronous one, eliminating race conditions between the service
-// code and test verification.
-
 // MockWorkflowFactory is a test implementation of the WorkflowFactory interface.
 //
 // This mock lets us verify that:
@@ -216,7 +205,12 @@ func (m *MockWorkflowFactory) NewWorkflow(
 	op *operation.Operation,
 ) (workflow.Workflow, error) {
 	args := m.Called(opType, t, tenantID, op)
-	return args.Get(0).(workflow.Workflow), args.Error(1)
+	workflow, _ := args.Get(0).(workflow.Workflow)
+	var err error
+	if len(args) > 1 {
+		err = args.Error(1)
+	}
+	return workflow, err
 }
 
 type MockProvisioningMetrics struct{ mock.Mock }
