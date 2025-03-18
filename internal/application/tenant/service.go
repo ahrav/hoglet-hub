@@ -25,26 +25,21 @@ type CreateParams struct {
 	IsolationGroupID *int64
 }
 
-// CreateResult contains the output of a tenant creation operation.
-// It provides the tenant ID and operation ID which can be used to track
-// the asynchronous provisioning progress through the operations API.
-//
-// Following the Go idiom "accept interfaces, return concrete types", we expose
-// only the operation identifiers rather than returning workflow interfaces.
-// This makes the API more stable and decouples consumers from implementation details.
-type CreateResult struct {
-	TenantID    int64
+// OperationResult provides a unified result type for tenant operations.
+// It contains the operation ID for tracking and optionally the tenant ID for
+// creation operations.
+type OperationResult struct {
 	OperationID int64
+	TenantID    int64 // Zero value (0) for operations that don't create tenants
 }
 
-// DeleteResult contains the output of a tenant deletion operation.
-// It provides the operation ID which can be used to track
-// the asynchronous deletion progress through the operations API.
-//
-// Following the Go idiom "accept interfaces, return concrete types", we expose
-// only the operation identifier rather than returning workflow interfaces.
-// This makes the API more stable and decouples consumers from implementation details.
-type DeleteResult struct{ OperationID int64 }
+// WorkflowType defines the type of tenant operation.
+type WorkflowType string
+
+const (
+	WorkflowTypeCreate WorkflowType = "create"
+	WorkflowTypeDelete WorkflowType = "delete"
+)
 
 // WorkflowFactory creates workflows for tenant operations.
 //
@@ -53,24 +48,10 @@ type DeleteResult struct{ OperationID int64 }
 //     following the Single Responsibility Principle.
 //  2. Extensibility: New workflow types or provisioning strategies can be added without
 //     modifying the core tenant service code.
-//
-// IMPLEMENTATION NOTE: In an ideal Go design following "accept interfaces, return concrete types",
-// this interface would return concrete workflow types. However, since we need to maintain workflow
-// implementation details in their own package and support multiple workflow implementations,
-// we use a workflow.Workflow interface as a return type. This is a deliberate trade-off between
-// strict adherence to Go idioms and maintaining a clean architecture with proper separation of concerns.
-// TODO: Revist this...
-// NOTE: There is probably a better way to do this, but my brain isn't working right now.
-//
-// The workflow.Workflow interface is considered an internal implementation detail
-// of the tenant service, and is never exposed directly to external API clients.
 type WorkflowFactory interface {
-	NewTenantCreationWorkflow(
-		t *tenant.Tenant,
-		tenantID int64,
-		op *operation.Operation,
-	) workflow.Workflow
-	NewTenantDeletionWorkflow(
+	// NewWorkflow creates the appropriate workflow based on the operation type.
+	NewWorkflow(
+		opType WorkflowType,
 		t *tenant.Tenant,
 		tenantID int64,
 		op *operation.Operation,
@@ -79,15 +60,12 @@ type WorkflowFactory interface {
 
 // DefaultWorkflowFactory is the default implementation of WorkflowFactory.
 //
-// This implementation creates standard workflows for tenant operations in production
-// environments. It encapsulates the details of workflow creation including
-// dependency management and initialization logic. By isolating these concerns,
-// the tenant service remains focused on orchestration rather than implementation
-// details of each workflow.
+// This implementation creates standard workflows for tenant operations. It
+// encapsulates the details of workflow creation including dependency management
+// and initialization logic.
 //
 // The factory pattern also allows us to extend the system with specialized factories
-// for different scenarios such as different cloud providers, regional requirements,
-// or tenant tiers with different resource allocations.
+// for different workflows.
 type DefaultWorkflowFactory struct {
 	tenantRepo    tenant.Repository
 	operationRepo operation.Repository
@@ -104,43 +82,53 @@ func NewDefaultWorkflowFactory(
 	tracer trace.Tracer,
 	metrics workflow.ProvisioningMetrics,
 ) *DefaultWorkflowFactory {
-	return &DefaultWorkflowFactory{tenantRepo, operationRepo, logger, tracer, metrics}
+	return &DefaultWorkflowFactory{
+		tenantRepo:    tenantRepo,
+		operationRepo: operationRepo,
+		logger:        logger,
+		tracer:        tracer,
+		metrics:       metrics,
+	}
 }
 
-// NewTenantCreationWorkflow creates a new tenant creation workflow
-func (f *DefaultWorkflowFactory) NewTenantCreationWorkflow(
+// NewWorkflow creates the appropriate workflow based on the operation type.
+//
+// This method is part of the WorkflowFactory interface and is implemented by
+// the DefaultWorkflowFactory. It creates and returns the correct workflow
+// implementation based on the provided operation type.
+func (f *DefaultWorkflowFactory) NewWorkflow(
+	opType WorkflowType,
 	t *tenant.Tenant,
 	tenantID int64,
 	op *operation.Operation,
 ) workflow.Workflow {
-	return workflow.NewTenantCreationWorkflow(
-		t,
-		tenantID,
-		op,
-		f.tenantRepo,
-		f.operationRepo,
-		f.logger,
-		f.tracer,
-		f.metrics,
-	)
-}
-
-// NewTenantDeletionWorkflow creates a new tenant deletion workflow
-func (f *DefaultWorkflowFactory) NewTenantDeletionWorkflow(
-	t *tenant.Tenant,
-	tenantID int64,
-	op *operation.Operation,
-) workflow.Workflow {
-	return workflow.NewTenantDeletionWorkflow(
-		t,
-		tenantID,
-		op,
-		f.tenantRepo,
-		f.operationRepo,
-		f.logger,
-		f.tracer,
-		f.metrics,
-	)
+	switch opType {
+	case WorkflowTypeCreate:
+		return workflow.NewTenantCreationWorkflow(
+			t,
+			tenantID,
+			op,
+			f.tenantRepo,
+			f.operationRepo,
+			f.logger,
+			f.tracer,
+			f.metrics,
+		)
+	case WorkflowTypeDelete:
+		return workflow.NewTenantDeletionWorkflow(
+			t,
+			tenantID,
+			op,
+			f.tenantRepo,
+			f.operationRepo,
+			f.logger,
+			f.tracer,
+			f.metrics,
+		)
+	default:
+		// TODO: revisit
+		return nil
+	}
 }
 
 // Service provides tenant-related application services.
@@ -221,7 +209,7 @@ func NewServiceWithWorkflowFactory(
 // Create initiates tenant creation and returns tenant ID and operation information.
 // It performs validation, creates necessary domain entities, and launches an async workflow.
 // TODO: Come back and deal with isolation group ID.
-func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResult, error) {
+func (s *Service) Create(ctx context.Context, params CreateParams) (*OperationResult, error) {
 	name, region, tier, isolationGroupID := params.Name, params.Region, params.Tier, params.IsolationGroupID
 	logger := logger.NewLoggerContext(s.logger.With(
 		"operation_type", "create",
@@ -282,56 +270,13 @@ func (s *Service) Create(ctx context.Context, params CreateParams) (*CreateResul
 	}
 	span.AddEvent("operation created")
 
-	operationID, err := s.operationRepo.Create(ctx, newOperation)
-	if err != nil {
-		span.RecordError(err)
-		span.SetStatus(codes.Error, "error persisting operation")
-		return nil, fmt.Errorf("failed to persist operation for tenant (%s): %w", name, err)
-	}
-	span.AddEvent("operation persisted")
-	logger.Add("operation_id", operationID)
-	span.SetAttributes(attribute.Int64("operation_id", operationID))
-	logger.Info(ctx, "operation created")
-
-	newOperation.ID = operationID
-
-	creationWorkflow := s.workflowFactory.NewTenantCreationWorkflow(
-		newTenant,
-		tenantID,
-		newOperation,
-	)
-	span.AddEvent("create workflow created")
-
-	s.mu.Lock()
-	s.activeWorkflows[operationID] = creationWorkflow
-	s.mu.Unlock()
-
-	// Start workflow execution in background.
-	// Using an asynchronous design pattern ensures the API remains responsive
-	// while long-running provisioning operations execute. This separation between
-	// request handling and resource provisioning is crucial for scalability
-	// and enables progress tracking through the operations API.
-	// Create a background context for the async workflow to prevent it from
-	// being canceled when the original request completes.
-	backgroundCtx := trace.ContextWithSpan(context.Background(), span)
-	creationWorkflow.Start(backgroundCtx)
-	span.AddEvent("async create workflow started")
-
-	// Set up goroutine to handle workflow completion and cleanup.
-	// Use the same background context to ensure it doesn't get canceled
-	go s.handleWorkflowCompletion(backgroundCtx, operationID, creationWorkflow)
-
-	logger.Info(ctx, "async create workflow started")
-	span.AddEvent("async create workflow started")
-	span.SetStatus(codes.Ok, "tenant creation process started")
-
-	return &CreateResult{TenantID: tenantID, OperationID: operationID}, nil
+	return s.executeWorkflow(ctx, WorkflowTypeCreate, newTenant, tenantID, newOperation, logger)
 }
 
 // Delete initiates tenant deletion and returns operation information.
 // It verifies the tenant exists, creates a tracking operation, and launches an async workflow.
 // TODO: Does this need to be async?
-func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, error) {
+func (s *Service) Delete(ctx context.Context, tenantID int64) (*OperationResult, error) {
 	logger := logger.NewLoggerContext(s.logger.With("operation_type", "delete", "tenant_id", tenantID))
 	ctx, span := s.tracer.Start(ctx, "tenant.Delete", trace.WithAttributes(
 		attribute.Int64("tenant_id", tenantID),
@@ -359,7 +304,28 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 	}
 	span.AddEvent("operation created")
 
-	operationID, err := s.operationRepo.Create(ctx, newOperation)
+	return s.executeWorkflow(ctx, WorkflowTypeDelete, t, tenantID, newOperation, logger)
+}
+
+// executeWorkflow handles the common workflow execution pattern
+// This extracts the shared logic from Create and Delete methods
+func (s *Service) executeWorkflow(
+	ctx context.Context,
+	wkflwType WorkflowType,
+	t *tenant.Tenant,
+	tenantID int64,
+	op *operation.Operation,
+	logger *logger.LoggerContext,
+) (*OperationResult, error) {
+	logger.Add("operation_type", string(wkflwType))
+	logger.Add("tenant_id", tenantID)
+	logger.Debug(ctx, "executing workflow")
+
+	ctx, span := s.tracer.Start(ctx, "tenant."+string(wkflwType),
+		trace.WithAttributes(attribute.Int64("tenant_id", tenantID)))
+	defer span.End()
+
+	operationID, err := s.operationRepo.Create(ctx, op)
 	if err != nil {
 		span.RecordError(err)
 		span.SetStatus(codes.Error, "error persisting operation")
@@ -370,22 +336,13 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 	span.AddEvent("operation persisted")
 	logger.Info(ctx, "operation created")
 
-	newOperation.ID = operationID
+	op.ID = operationID
 
-	// Create workflow using the factory
-	// The factory pattern encapsulates the complexity of workflow creation and allows
-	// for different provisioning strategies based on tenant characteristics, infrastructure
-	// requirements, and regional constraints. This improves maintainability and makes
-	// the system more adaptable to changing business requirements.
-	deletionWorkflow := s.workflowFactory.NewTenantDeletionWorkflow(
-		t,
-		tenantID,
-		newOperation,
-	)
-	span.AddEvent("delete workflow created")
+	tenantWorkflow := s.workflowFactory.NewWorkflow(wkflwType, t, tenantID, op)
+	span.AddEvent(string(wkflwType) + " workflow created")
 
 	s.mu.Lock()
-	s.activeWorkflows[operationID] = deletionWorkflow
+	s.activeWorkflows[operationID] = tenantWorkflow
 	s.mu.Unlock()
 
 	// Start workflow execution in background.
@@ -396,17 +353,19 @@ func (s *Service) Delete(ctx context.Context, tenantID int64) (*DeleteResult, er
 	// Create a background context for the async workflow to prevent it from
 	// being canceled when the original request completes.
 	backgroundCtx := trace.ContextWithSpan(context.Background(), span)
-	deletionWorkflow.Start(backgroundCtx)
+	tenantWorkflow.Start(backgroundCtx)
 
 	// Set up goroutine to handle workflow completion and cleanup.
-	// Use the same background context to ensure it doesn't get canceled
-	go s.handleWorkflowCompletion(backgroundCtx, operationID, deletionWorkflow)
+	go s.handleWorkflowCompletion(backgroundCtx, operationID, tenantWorkflow)
 
-	logger.Info(ctx, "async delete workflow started")
-	span.AddEvent("async delete workflow started")
-	span.SetStatus(codes.Ok, "tenant deletion process started")
+	logger.Info(ctx, "async "+string(wkflwType)+" workflow started")
+	span.AddEvent("async " + string(wkflwType) + " workflow started")
+	span.SetStatus(codes.Ok, "tenant "+string(wkflwType)+" process started")
 
-	return &DeleteResult{OperationID: operationID}, nil
+	return &OperationResult{
+		OperationID: operationID,
+		TenantID:    tenantID,
+	}, nil
 }
 
 // GetOperationStatus retrieves the current status of an operation.

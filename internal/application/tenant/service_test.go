@@ -207,25 +207,15 @@ func (m *MockWorkflow) SendResult(result workflow.WorkflowResult) { m.resultChan
 // By injecting this factory in tests, we maintain the architectural separation
 // between service orchestration and workflow implementation while keeping
 // tests deterministic and reliable.
-type MockWorkflowFactory struct {
-	mock.Mock
-}
+type MockWorkflowFactory struct{ mock.Mock }
 
-func (m *MockWorkflowFactory) NewTenantCreationWorkflow(
+func (m *MockWorkflowFactory) NewWorkflow(
+	opType tenant.WorkflowType,
 	t *tenantDomain.Tenant,
 	tenantID int64,
 	op *operation.Operation,
 ) workflow.Workflow {
-	args := m.Called(t, tenantID, op)
-	return args.Get(0).(workflow.Workflow)
-}
-
-func (m *MockWorkflowFactory) NewTenantDeletionWorkflow(
-	t *tenantDomain.Tenant,
-	tenantID int64,
-	op *operation.Operation,
-) workflow.Workflow {
-	args := m.Called(t, tenantID, op)
+	args := m.Called(opType, t, tenantID, op)
 	return args.Get(0).(workflow.Workflow)
 }
 
@@ -377,7 +367,8 @@ func TestServiceCreate(t *testing.T) {
 				mockWorkflow.TestMode()
 
 				// Set up the factory to return our controlled workflow.
-				mockWorkflowFactory.On("NewTenantCreationWorkflow",
+				mockWorkflowFactory.On("NewWorkflow",
+					tenant.WorkflowTypeCreate,
 					mock.AnythingOfType("*tenant.Tenant"),
 					mock.AnythingOfType("int64"),
 					mock.AnythingOfType("*operation.Operation")).
@@ -505,7 +496,8 @@ func TestServiceDelete(t *testing.T) {
 				mockWorkflow.TestMode()
 
 				// Set up the factory to return our controlled workflow.
-				mockWorkflowFactory.On("NewTenantDeletionWorkflow",
+				mockWorkflowFactory.On("NewWorkflow",
+					tenant.WorkflowTypeDelete,
 					mock.AnythingOfType("*tenant.Tenant"),
 					mock.AnythingOfType("int64"),
 					mock.AnythingOfType("*operation.Operation")).
