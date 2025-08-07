@@ -100,7 +100,7 @@ require (
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect
-	github.com/arl/statsviz v0.7.0
+	github.com/arl/statsviz v0.7.1
 	github.com/dprotaso/go-yit v0.0.0-20220510233725-9ba8df137936 // indirect
 	github.com/exaring/otelpgx v0.9.3
 	github.com/getkin/kin-openapi v0.132.0 // indirect
